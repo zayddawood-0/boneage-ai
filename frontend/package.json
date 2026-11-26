@@ -1,0 +1,12 @@
+{
+  "name": "boneage-ai-frontend",
+  "private": true,
+  "version": "0.0.0",
+  "description": "BoneAge AI frontend (not yet implemented) — React + TypeScript + Vite + Tailwind. See docs/design.md and design/README.md before building any screen.",
+  "type": "module",
+  "scripts": {
+    "dev": "echo 'TODO: not yet scaffolded — see docs/tasks.md' && exit 1",
+    "build": "echo 'TODO: not yet scaffolded — see docs/tasks.md' && exit 1",
+    "test": "echo 'TODO: not yet scaffolded — see docs/tasks.md' && exit 1"
+  }
+}

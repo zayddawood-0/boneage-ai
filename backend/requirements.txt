@@ -1,0 +1,8 @@
+# Planned backend dependencies (see docs/architecture.md, docs/model.md).
+# Not yet installed/used — no application code exists in backend/ yet.
+fastapi
+uvicorn[standard]
+pydantic
+sqlalchemy
+python-multipart
+openai-agents

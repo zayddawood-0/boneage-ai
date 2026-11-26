@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>New analysis</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F5F3EF}
+a{color:#24614B}a:hover{color:#1A4D3A}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="{{ rootStyle }}">
+<nav aria-label="Main" style="flex: 1 1 220px; max-width: 260px; background: #1C1917; color: #EDE9E3; padding: 24px 16px; box-sizing: border-box; display: flex; flex-direction: column; gap: 28px">
+  <div style="display: flex; align-items: center; gap: 10px; padding: 0 8px">
+    <svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#3A8A6A"></rect><path d="M11 24v-8m4 8V10m4 14V12m4 12v-6" stroke="#fff" stroke-width="2.2" stroke-linecap="round" fill="none"></path></svg>
+    <div><div style="font-weight: 700; font-size: 16px">BoneAge AI</div><div style="font-size: 12px; color: #B5ADA3">Growth screening</div></div>
+  </div>
+  <div style="display: flex; flex-direction: column; gap: 4px">
+  <a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 11px 12px; border-radius: 8px; text-decoration: none; font-size: 14px; color: #D6CFC6"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>Dashboard</a>
+  <a href="NewAnalysis.dc.html" aria-current="page" style="display: flex; align-items: center; gap: 10px; padding: 11px 12px; border-radius: 8px; text-decoration: none; font-size: 14px; background: #2E2A25; color: #fff; font-weight: 600"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>New analysis</a>
+  <a href="Queue.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 11px 12px; border-radius: 8px; text-decoration: none; font-size: 14px; color: #D6CFC6"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"></path></svg>Review queue<span style="margin-left: auto; background: #F2A65A; color: #1A0E05; font-size: 12px; font-weight: 700; padding: 1px 8px; border-radius: 10px">2</span></a>
+  <a href="Patients.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 11px 12px; border-radius: 8px; text-decoration: none; font-size: 14px; color: #D6CFC6"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c0-4 4-6 8-6s8 2 8 6"></path></svg>Patients</a>
+  <a href="Model.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 11px 12px; border-radius: 8px; text-decoration: none; font-size: 14px; color: #D6CFC6"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 12h4l3 8 4-16 3 8h4"></path></svg>Model performance</a>
+  <a href="Settings.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 11px 12px; border-radius: 8px; text-decoration: none; font-size: 14px; color: #D6CFC6"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"></path></svg>Settings</a>
+  </div>
+  <div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px">
+    <div style="background: #26231F; border-radius: 10px; padding: 14px; font-size: 12px; line-height: 1.5; color: #CFC8BF"><div style="font-weight: 600; color: #fff; margin-bottom: 4px">Model</div>CNN + sex input · trained on RSNA Bone Age 2017</div>
+    <a href="Login.dc.html" style="color: #D6CFC6; font-size: 13px; padding: 8px 12px; text-decoration: none">Sign out</a>
+  </div>
+</nav>
+<main style="flex: 999 1 560px; min-width: 0; padding: 24px 32px 48px; box-sizing: border-box; display: flex; flex-direction: column; gap: 24px; max-width: 1240px">
+  <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px; justify-content: space-between">
+    <div>
+      <h1 style="margin: 0; font-size: 26px; font-weight: 700">New analysis</h1>
+      <p style="margin: 4px 0 0; font-size: 14px; color: var(--muted)">Add patient details and a hand X-ray to estimate bone age</p>
+    </div>
+    <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px">
+      
+      <button type="button" onClick="{{ toggleTheme }}" aria-label="{{ themeLabel }}" style="height: 44px; display: flex; align-items: center; gap: 8px; padding: 0 14px; border: 1px solid var(--input); border-radius: 8px; background: var(--surface); color: var(--ink); font-size: 14px; font-weight: 600">
+        <sc-if value="{{ isDark }}" hint-placeholder-val="{{ false }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg></sc-if>
+        <sc-if value="{{ isLight }}" hint-placeholder-val="{{ true }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"></path></svg></sc-if>
+        {{ themeButtonText }}
+      </button>
+      <div style="display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--input); border-radius: 8px; padding: 6px 12px 6px 6px">
+        <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--avatar); color: var(--accent-text); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px">DR</div>
+        <div style="font-size: 13px"><div style="font-weight: 600">[Doctor name]</div><div style="color: var(--muted)">Pediatric endocrinology</div></div>
+      </div>
+    </div>
+  </header>
+  <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: center; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 22px; padding: 16px 22px">
+    <div style="display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; color: var(--ink)"><span style="width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; background: #24614B; color: #fff">1</span>Patient details</div><span style="flex: 0 0 32px; height: 1px; background: var(--line)"></span>
+    <div style="display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; color: var(--ink)"><span style="width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; background: #24614B; color: #fff">2</span>Upload X-ray</div><span style="flex: 0 0 32px; height: 1px; background: var(--line)"></span>
+    <div style="display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 500; color: var(--muted)"><span style="width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; background: var(--seg); color: var(--text2)">3</span>Review and run</div>
+  </div>
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 24px">
+    <section aria-labelledby="pd" style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 22px; display: flex; flex-direction: column; gap: 16px">
+      <h2 id="pd" style="margin: 0; font-size: 18px">1 · Patient details</h2>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px">
+        <div style="display: flex; flex-direction: column; gap: 6px"><label for="pname" style="font-size: 13px; font-weight: 600">Patient name or ID</label><input id="pname" type="text" placeholder="e.g. MRN 000000" style="height: 44px; border: 1px solid var(--input); border-radius: 8px; padding: 0 12px; font-family: inherit; font-size: 14px; background: var(--surface); color: var(--ink); box-sizing: border-box; width: 100%"></div>
+        <div style="display: flex; flex-direction: column; gap: 6px"><label for="ref" style="font-size: 13px; font-weight: 600">Referring doctor</label><input id="ref" type="text" placeholder="[Doctor name]" style="height: 44px; border: 1px solid var(--input); border-radius: 8px; padding: 0 12px; font-family: inherit; font-size: 14px; background: var(--surface); color: var(--ink); box-sizing: border-box; width: 100%"></div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <span style="font-size: 13px; font-weight: 600">Sex (model input)</span>
+        <div role="group" aria-label="Sex" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+          <button type="button" onClick="{{ pickMale }}" aria-pressed="{{ maleOn }}" style="{{ maleStyle }}">Male</button>
+          <button type="button" onClick="{{ pickFemale }}" aria-pressed="{{ femaleOn }}" style="{{ femaleStyle }}">Female</button>
+        </div>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px">
+        <div style="display: flex; flex-direction: column; gap: 6px"><label for="dob" style="font-size: 13px; font-weight: 600">Date of birth</label><input id="dob" type="date" placeholder="" style="height: 44px; border: 1px solid var(--input); border-radius: 8px; padding: 0 12px; font-family: inherit; font-size: 14px; background: var(--surface); color: var(--ink); box-sizing: border-box; width: 100%"></div>
+        <div style="display: flex; flex-direction: column; gap: 6px"><label for="xd" style="font-size: 13px; font-weight: 600">X-ray date</label><input id="xd" type="date" placeholder="" style="height: 44px; border: 1px solid var(--input); border-radius: 8px; padding: 0 12px; font-family: inherit; font-size: 14px; background: var(--surface); color: var(--ink); box-sizing: border-box; width: 100%"></div>
+      </div>
+      <div style="background: var(--soft); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; display: flex; justify-content: space-between; align-items: center">
+        <span style="font-size: 13px; color: var(--muted)">Chronological age at X-ray</span>
+        <span style="font-family: 'IBM Plex Mono', monospace; font-size: 18px; font-weight: 600">—</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px">
+        <div style="display: flex; flex-direction: column; gap: 6px"><label for="ht" style="font-size: 13px; font-weight: 600">Height (cm, optional)</label><input id="ht" type="number" placeholder="" style="height: 44px; border: 1px solid var(--input); border-radius: 8px; padding: 0 12px; font-family: inherit; font-size: 14px; background: var(--surface); color: var(--ink); box-sizing: border-box; width: 100%"></div>
+        <div style="display: flex; flex-direction: column; gap: 6px"><label for="wt" style="font-size: 13px; font-weight: 600">Weight (kg, optional)</label><input id="wt" type="number" placeholder="" style="height: 44px; border: 1px solid var(--input); border-radius: 8px; padding: 0 12px; font-family: inherit; font-size: 14px; background: var(--surface); color: var(--ink); box-sizing: border-box; width: 100%"></div>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <label for="reason" style="font-size: 13px; font-weight: 600">Reason for referral (optional)</label>
+        <textarea id="reason" rows="3" placeholder="e.g. short stature, early puberty signs" style="border: 1px solid var(--input); border-radius: 8px; padding: 10px; font-family: inherit; font-size: 14px; background: var(--surface); color: var(--ink); resize: vertical"></textarea>
+      </div>
+    </section>
+    <section aria-labelledby="up" style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 22px; display: flex; flex-direction: column; gap: 16px">
+      <h2 id="up" style="margin: 0; font-size: 18px">2 · Upload hand X-ray</h2>
+      <label for="file" style="border: 2px dashed var(--dash); border-radius: 12px; background: var(--soft); height: 360px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; cursor: pointer; padding: 16px; box-sizing: border-box">
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="color: var(--accent-text)" aria-hidden="true"><path d="M12 16V4m0 0l-4 4m4-4l4 4M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3"></path></svg>
+        <span style="font-weight: 600; font-size: 16px">Drop the X-ray here, or browse</span>
+        <span style="font-size: 13px; color: var(--muted)">Left hand, palm down · PNG, JPG or DICOM</span>
+        <input id="file" type="file" style="position: absolute; left: -9999px">
+      </label>
+      <div>
+        <div style="font-size: 13px; font-weight: 600; margin-bottom: 10px">Image quality checks</div>
+        <ul style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px">
+          <li style="display: flex; gap: 10px; align-items: flex-start; font-size: 14px"><span style="background: var(--seg); color: var(--text2); font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px">Waiting</span><span>Hand detected and fully in frame</span></li>
+          <li style="display: flex; gap: 10px; align-items: flex-start; font-size: 14px"><span style="background: var(--seg); color: var(--text2); font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px">Waiting</span><span>Orientation corrected (fingers up)</span></li>
+          <li style="display: flex; gap: 10px; align-items: flex-start; font-size: 14px"><span style="background: var(--seg); color: var(--text2); font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px">Waiting</span><span>Resolution high enough for the model</span></li>
+          <li style="display: flex; gap: 10px; align-items: flex-start; font-size: 14px"><span style="background: var(--seg); color: var(--text2); font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px">Waiting</span><span>Patient details removed from the image</span></li>
+        </ul>
+      </div>
+    </section>
+  </div>
+  <section style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 22px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px">
+    <div>
+      <div style="font-weight: 600; font-size: 15px">3 · Review and run</div>
+      <div style="font-size: 13px; color: var(--muted); margin-top: 4px">The model returns bone age in a few seconds. The agent then compares it with chronological age.</div>
+    </div>
+    <div style="display: flex; gap: 10px; flex-wrap: wrap">
+      <button type="button" style="height: 44px; padding: 0 18px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font-weight: 600; font-size: 14px">Save as draft</button>
+      <a href="Case.dc.html" style="display: inline-flex; align-items: center; justify-content: center; height: 44px; padding: 0 18px; border-radius: 8px; background: #24614B; color: #fff; font-weight: 600; font-size: 14px; text-decoration: none">Run bone age analysis</a>
+    </div>
+  </section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":1300}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { theme: null, sex: null }; }
+  renderVals() {
+    const LIGHT = '--bg:#F5F3EF;--surface:#FFFFFF;--ink:#1C1917;--muted:#5C5650;--text2:#3F3A35;--border:#E5E0D8;--row:#EFEBE5;--input:#D6D0C7;--line:#CBC4BA;--dash:#BDB5AA;--soft:#FAF8F5;--soft-blue:#EEF5F1;--seg:#EFEBE5;--track:#E8E3DC;--band:#CFE5DA;--band2:#DCEDE4;--ok-bg:#E3F0E9;--ok-text:#1A4D3A;--flag-bg:#FDF0DC;--flag-text:#7A3E00;--gap-bg:#FEF6EA;--gap-border:#F0D3A8;--gap-label:#6B3A0A;--flag:#B45309;--avatar:#E3F0E9;--accent-text:#24614B;color-scheme:light;';
+    const DARK = '--bg:#12110F;--surface:#1C1A17;--ink:#EDE9E3;--muted:#A8A097;--text2:#CFC8BF;--border:#2E2A25;--row:#26231F;--input:#3A352F;--line:#47413A;--dash:#47413A;--soft:#211F1B;--soft-blue:#1A2A23;--seg:#26231F;--track:#2E2A25;--band:#24453A;--band2:#1E3A30;--ok-bg:#1E3A30;--ok-text:#B5E3CC;--flag-bg:#3A2610;--flag-text:#FFC98A;--gap-bg:#2B1E0F;--gap-border:#5C3D17;--gap-label:#F3CFA0;--flag:#F2A65A;--avatar:#1E3A30;--accent-text:#7CC4A4;color-scheme:dark;';
+    const theme = this.state.theme ?? this.props.theme ?? 'light';
+    const dark = theme === 'dark';
+    const rootStyle = (dark ? DARK : LIGHT) + "font-family: 'IBM Plex Sans', system-ui, sans-serif; color: var(--ink); background: var(--bg); display: flex; flex-wrap: wrap; min-height: 100vh";
+    const on = 'height: 44px; border-radius: 8px; border: 2px solid var(--accent-text); background: var(--ok-bg); color: var(--ok-text); font-weight: 600; font-size: 14px';
+    const off = 'height: 44px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--text2); font-weight: 500; font-size: 14px';
+    const s = this.state.sex;
+    return {
+      rootStyle, isDark: dark, isLight: !dark,
+      themeButtonText: dark ? 'Light' : 'Dark',
+      themeLabel: dark ? 'Switch to light theme' : 'Switch to dark theme',
+      toggleTheme: () => this.setState({ theme: dark ? 'light' : 'dark' }),
+      maleOn: s === 'M' ? 'true' : 'false', femaleOn: s === 'F' ? 'true' : 'false',
+      maleStyle: s === 'M' ? on : off, femaleStyle: s === 'F' ? on : off,
+      pickMale: () => this.setState({ sex: 'M' }), pickFemale: () => this.setState({ sex: 'F' })
+    };
+  }
+}
+</script>
+</body>
+</html>

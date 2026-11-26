@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Model performance</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F5F3EF}
+a{color:#24614B}a:hover{color:#1A4D3A}
+button{font-family:inherit;cursor:pointer}
+</style>
+</helmet>
+<div style="{{ rootStyle }}">
+<nav aria-label="Main" style="flex: 1 1 220px; max-width: 260px; background: #1C1917; color: #EDE9E3; padding: 24px 16px; box-sizing: border-box; display: flex; flex-direction: column; gap: 28px">
+  <div style="display: flex; align-items: center; gap: 10px; padding: 0 8px">
+    <svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#3A8A6A"></rect><path d="M11 24v-8m4 8V10m4 14V12m4 12v-6" stroke="#fff" stroke-width="2.2" stroke-linecap="round" fill="none"></path></svg>
+    <div><div style="font-weight: 700; font-size: 16px">BoneAge AI</div><div style="font-size: 12px; color: #B5ADA3">Growth screening</div></div>
+  </div>
+  <div style="display: flex; flex-direction: column; gap: 4px">
+  <a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 11px 12px; border-radius: 8px; text-decoration: none; font-size: 14px; color: #D6CFC6"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>Dashboard</a>
+  <a href="NewAnalysis.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 11px 12px; border-radius: 8px; text-decoration: none; font-size: 14px; color: #D6CFC6"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>New analysis</a>
+  <a href="Queue.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 11px 12px; border-radius: 8px; text-decoration: none; font-size: 14px; color: #D6CFC6"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"></path></svg>Review queue<span style="margin-left: auto; background: #F2A65A; color: #1A0E05; font-size: 12px; font-weight: 700; padding: 1px 8px; border-radius: 10px">2</span></a>
+  <a href="Patients.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 11px 12px; border-radius: 8px; text-decoration: none; font-size: 14px; color: #D6CFC6"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="4"></circle><path d="M4 21c0-4 4-6 8-6s8 2 8 6"></path></svg>Patients</a>
+  <a href="Model.dc.html" aria-current="page" style="display: flex; align-items: center; gap: 10px; padding: 11px 12px; border-radius: 8px; text-decoration: none; font-size: 14px; background: #2E2A25; color: #fff; font-weight: 600"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 12h4l3 8 4-16 3 8h4"></path></svg>Model performance</a>
+  <a href="Settings.dc.html" style="display: flex; align-items: center; gap: 10px; padding: 11px 12px; border-radius: 8px; text-decoration: none; font-size: 14px; color: #D6CFC6"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"></path></svg>Settings</a>
+  </div>
+  <div style="margin-top: auto; display: flex; flex-direction: column; gap: 10px">
+    <div style="background: #26231F; border-radius: 10px; padding: 14px; font-size: 12px; line-height: 1.5; color: #CFC8BF"><div style="font-weight: 600; color: #fff; margin-bottom: 4px">Model</div>CNN + sex input · trained on RSNA Bone Age 2017</div>
+    <a href="Login.dc.html" style="color: #D6CFC6; font-size: 13px; padding: 8px 12px; text-decoration: none">Sign out</a>
+  </div>
+</nav>
+<main style="flex: 999 1 560px; min-width: 0; padding: 24px 32px 48px; box-sizing: border-box; display: flex; flex-direction: column; gap: 24px; max-width: 1240px">
+  <header style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px; justify-content: space-between">
+    <div>
+      <h1 style="margin: 0; font-size: 26px; font-weight: 700">Model performance</h1>
+      <p style="margin: 4px 0 0; font-size: 14px; color: var(--muted)">How accurate the bone age model is, and where it may fall short</p>
+    </div>
+    <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px">
+      
+      <button type="button" onClick="{{ toggleTheme }}" aria-label="{{ themeLabel }}" style="height: 44px; display: flex; align-items: center; gap: 8px; padding: 0 14px; border: 1px solid var(--input); border-radius: 8px; background: var(--surface); color: var(--ink); font-size: 14px; font-weight: 600">
+        <sc-if value="{{ isDark }}" hint-placeholder-val="{{ false }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg></sc-if>
+        <sc-if value="{{ isLight }}" hint-placeholder-val="{{ true }}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"></path></svg></sc-if>
+        {{ themeButtonText }}
+      </button>
+      <div style="display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--input); border-radius: 8px; padding: 6px 12px 6px 6px">
+        <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--avatar); color: var(--accent-text); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px">DR</div>
+        <div style="font-size: 13px"><div style="font-weight: 600">[Doctor name]</div><div style="color: var(--muted)">Pediatric endocrinology</div></div>
+      </div>
+    </div>
+  </header>
+  <section aria-label="Key metrics" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px">
+    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 22px; padding: 18px"><div style="font-size: 13px; color: var(--muted)">Mean absolute error</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 28px; font-weight: 600; margin-top: 6px">[__] mo</div><div style="font-size: 12px; color: var(--muted); margin-top: 4px">RSNA validation set</div></div>
+    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 22px; padding: 18px"><div style="font-size: 13px; color: var(--muted)">MAE · male</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 28px; font-weight: 600; margin-top: 6px">[__] mo</div><div style="font-size: 12px; color: var(--muted); margin-top: 4px">Validation set</div></div>
+    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 22px; padding: 18px"><div style="font-size: 13px; color: var(--muted)">MAE · female</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 28px; font-weight: 600; margin-top: 6px">[__] mo</div><div style="font-size: 12px; color: var(--muted); margin-top: 4px">Validation set</div></div>
+    <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 22px; padding: 18px"><div style="font-size: 13px; color: var(--muted)">Within ±12 months</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 28px; font-weight: 600; margin-top: 6px">[__]%</div><div style="font-size: 12px; color: var(--muted); margin-top: 4px">Share of validation cases</div></div>
+  </section>
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 24px">
+    <section aria-labelledby="sc" style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 22px; display: flex; flex-direction: column; gap: 12px">
+      <h2 id="sc" style="margin: 0; font-size: 18px">Predicted vs true bone age</h2>
+      <div role="img" aria-label="Scatter of predicted vs radiologist bone age, from your validation run" style="height: 320px; border-radius: 10px; border: 1px dashed var(--dash); background: var(--soft); display: flex; align-items: center; justify-content: center; text-align: center; color: var(--muted); font-size: 14px; padding: 16px; box-sizing: border-box">[Scatter of predicted vs radiologist bone age, from your validation run]</div>
+    </section>
+    <section aria-labelledby="eh" style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 22px; display: flex; flex-direction: column; gap: 12px">
+      <h2 id="eh" style="margin: 0; font-size: 18px">Error by age group</h2>
+      <div role="img" aria-label="Bar chart of MAE per age band (0–5, 5–10, 10–15, 15–19 years)" style="height: 320px; border-radius: 10px; border: 1px dashed var(--dash); background: var(--soft); display: flex; align-items: center; justify-content: center; text-align: center; color: var(--muted); font-size: 14px; padding: 16px; box-sizing: border-box">[Bar chart of MAE per age band (0–5, 5–10, 10–15, 15–19 years)]</div>
+    </section>
+  </div>
+  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 24px">
+    <section aria-labelledby="mc" style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 22px">
+      <h2 id="mc" style="margin: 0 0 8px; font-size: 18px">Model card</h2>
+      <div style="display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--row); font-size: 14px"><span style="color: var(--muted)">Task</span><span style="font-weight: 600; text-align: right">Bone age regression from left-hand X-ray</span></div>
+      <div style="display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--row); font-size: 14px"><span style="color: var(--muted)">Inputs</span><span style="font-weight: 600; text-align: right">X-ray image + sex</span></div>
+      <div style="display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--row); font-size: 14px"><span style="color: var(--muted)">Architecture</span><span style="font-weight: 600; text-align: right">[Backbone, e.g. CNN name]</span></div>
+      <div style="display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--row); font-size: 14px"><span style="color: var(--muted)">Training data</span><span style="font-weight: 600; text-align: right">RSNA Pediatric Bone Age Challenge 2017</span></div>
+      <div style="display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--row); font-size: 14px"><span style="color: var(--muted)">Dataset split</span><span style="font-weight: 600; text-align: right">12,611 train · 1,425 validation · 200 test</span></div>
+      <div style="display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--row); font-size: 14px"><span style="color: var(--muted)">Version</span><span style="font-weight: 600; text-align: right"><span style="font-family: 'IBM Plex Mono', monospace">[v_._]</span></span></div>
+      <div style="display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--row); font-size: 14px"><span style="color: var(--muted)">Last trained</span><span style="font-weight: 600; text-align: right">[date]</span></div>
+    </section>
+    <section aria-labelledby="lim" style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 22px; display: flex; flex-direction: column; gap: 12px">
+      <h2 id="lim" style="margin: 0; font-size: 18px">Limitations</h2>
+      <ul style="margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 10px; font-size: 14px; line-height: 1.5">
+        <li>Trained on X-rays from a small number of US hospitals; accuracy may differ for other populations.</li>
+        <li>Labels follow radiologist bone age readings, so the model inherits their variation.</li>
+        <li>The normal-range threshold used by the agent is a setting, not something the model learns.</li>
+        <li>Not for children outside the age range of the training data.</li>
+      </ul>
+      <div style="background: var(--soft); border: 1px solid var(--border); border-radius: 10px; padding: 14px; font-size: 13px; color: var(--text2)">External check: evaluate on the Digital Hand Atlas or RHPE datasets to see how the model does on other populations.</div>
+    </section>
+  </div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":1300}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { theme: null }; }
+  renderVals() {
+    const LIGHT = '--bg:#F5F3EF;--surface:#FFFFFF;--ink:#1C1917;--muted:#5C5650;--text2:#3F3A35;--border:#E5E0D8;--row:#EFEBE5;--input:#D6D0C7;--line:#CBC4BA;--dash:#BDB5AA;--soft:#FAF8F5;--soft-blue:#EEF5F1;--seg:#EFEBE5;--track:#E8E3DC;--band:#CFE5DA;--band2:#DCEDE4;--ok-bg:#E3F0E9;--ok-text:#1A4D3A;--flag-bg:#FDF0DC;--flag-text:#7A3E00;--gap-bg:#FEF6EA;--gap-border:#F0D3A8;--gap-label:#6B3A0A;--flag:#B45309;--avatar:#E3F0E9;--accent-text:#24614B;color-scheme:light;';
+    const DARK = '--bg:#12110F;--surface:#1C1A17;--ink:#EDE9E3;--muted:#A8A097;--text2:#CFC8BF;--border:#2E2A25;--row:#26231F;--input:#3A352F;--line:#47413A;--dash:#47413A;--soft:#211F1B;--soft-blue:#1A2A23;--seg:#26231F;--track:#2E2A25;--band:#24453A;--band2:#1E3A30;--ok-bg:#1E3A30;--ok-text:#B5E3CC;--flag-bg:#3A2610;--flag-text:#FFC98A;--gap-bg:#2B1E0F;--gap-border:#5C3D17;--gap-label:#F3CFA0;--flag:#F2A65A;--avatar:#1E3A30;--accent-text:#7CC4A4;color-scheme:dark;';
+    const theme = this.state.theme ?? this.props.theme ?? 'light';
+    const dark = theme === 'dark';
+    const rootStyle = (dark ? DARK : LIGHT) + "font-family: 'IBM Plex Sans', system-ui, sans-serif; color: var(--ink); background: var(--bg); display: flex; flex-wrap: wrap; min-height: 100vh";
+
+    return {
+      rootStyle, isDark: dark, isLight: !dark,
+      themeButtonText: dark ? 'Light' : 'Dark',
+      themeLabel: dark ? 'Switch to light theme' : 'Switch to dark theme',
+      toggleTheme: () => this.setState({ theme: dark ? 'light' : 'dark' })
+    };
+  }
+}
+</script>
+</body>
+</html>

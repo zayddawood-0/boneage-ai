@@ -1,0 +1,57 @@
+# BoneAge AI — ML data pipeline config.
+#
+# Copy this file to ml/config/config.yaml and fill in real paths before running
+# anything against the actual RSNA dataset. config.yaml is gitignored on purpose —
+# the dataset itself is never committed (see docs/data.md for licence terms).
+#
+# This repo does not include the dataset. Download it yourself per docs/data.md
+# (Kaggle mirror: kaggle datasets download -d kmader/rsna-bone-age) and point the
+# paths below at wherever you extracted it.
+
+seed: 42
+
+data:
+  rsna:
+    # Each split is expected as its own image directory + CSV, matching how RSNA
+    # distributes the official splits (docs/data.md#splits: 12,611 train /
+    # 1,425 validation / 200 test). Each CSV must have the columns described in
+    # docs/data.md: an id column, "boneage" (months), and "male" (sex flag).
+    train:
+      images_dir: "/path/to/rsna/train/images"
+      labels_csv: "/path/to/rsna/train/train.csv"
+    val:
+      images_dir: "/path/to/rsna/validation/images"
+      labels_csv: "/path/to/rsna/validation/validation.csv"
+    test:
+      images_dir: "/path/to/rsna/test/images"
+      labels_csv: "/path/to/rsna/test/test.csv"
+  # Column name overrides, in case a CSV variant uses different headers
+  # (e.g. the Kaggle test CSV uses "Case ID"/"Sex" instead of "id"/"male").
+  column_aliases:
+    id: ["id", "Case ID", "case_id"]
+    boneage: ["boneage", "Bone Age", "bone_age"]
+    male: ["male", "Sex", "sex"]
+  image_extension: ".png"
+
+preprocessing:
+  # Square size images are resized/padded to before the model sees them.
+  # [TBD] — depends on the chosen CNN backbone (see docs/model.md); 384 is a
+  # reasonable placeholder default for an EfficientNet/ResNet-style backbone.
+  image_size: 384
+  # Standard ImageNet normalisation constants — used because the grayscale
+  # X-ray is replicated to 3 channels to match a pretrained backbone's input.
+  normalize_mean: [0.485, 0.456, 0.406]
+  normalize_std: [0.229, 0.224, 0.225]
+
+augmentation:
+  # Training-time only — never applied to validation/test. No horizontal flip:
+  # every RSNA image is a left hand, so flipping would mix in a right-hand pose.
+  rotation_degrees: 10
+  translate_frac: 0.05
+  zoom_range: [0.95, 1.05]
+  brightness: 0.2
+  contrast: 0.2
+
+dataloader:
+  batch_size: 16
+  num_workers: 2

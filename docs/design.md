@@ -4,6 +4,32 @@ Part of the [BoneAge AI](../README.md) documentation set. See also: [requirement
 
 This document specifies the interactive mockup already designed for BoneAge AI: every screen, its components and states, the navigation map, design tokens, typography, accessibility rules, and the light/dark theming approach.
 
+## Design lock
+
+The approved UI design for every screen is the set of files in [`design/`](../design/README.md) — this document describes them, it does not supersede them.
+
+> The frontend must match the files in design/ exactly: same layout, spacing, sizes, colours, fonts (IBM Plex Sans and IBM Plex Mono), copy, icons, states and light/dark themes. Use the LIGHT and DARK token strings in each file's renderVals() as the theme CSS variables. Do not redesign, restyle or "improve" any screen. If something in design/ is unclear or cannot be built as drawn, ask before changing it.
+
+See [CLAUDE.md](../CLAUDE.md#frontend-design-locked) / [AGENTS.md](../AGENTS.md#frontend-design-locked) for the same rule in agent-facing form.
+
+## Design file map
+
+Each design file maps to one screen and route, as listed in [`design/README.md`](../design/README.md):
+
+| Design file | Screen (this doc) | Route (suggested) |
+|---|---|---|
+| `design/Login.html` | [1. Sign in](#1-sign-in) | `/login` |
+| `design/Main.html` | [2. Dashboard](#2-dashboard) (light theme) | `/` |
+| `design/Dark.html` | [2. Dashboard](#2-dashboard) (dark theme reference — same markup as `Main.html`) | — |
+| `design/NewAnalysis.html` | [3. New analysis](#3-new-analysis-3-step-flow) (3-step flow) | `/analysis/new` |
+| `design/Queue.html` | [4. Review queue](#4-review-queue) | `/queue` |
+| `design/Case.html` | [5. Case report](#5-case-report) | `/cases/:id` |
+| `design/Patients.html` | [6. Patients](#6-patients) | `/patients` |
+| `design/Model.html` | [7. Model performance](#7-model-performance) | `/model` |
+| `design/Settings.html` | [8. Settings](#8-settings) | `/settings` |
+
+Links between design files use `href="X.dc.html"` — map each to the route above. See `design/README.md` for how to read the `<x-dc>`/`renderVals()` format.
+
 ## Visual direction
 
 - **Tone:** warm and clinical, no blue.

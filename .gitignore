@@ -1,0 +1,52 @@
+# Secrets / environment
+.env
+.env.*
+!.env.example
+
+# Local ML config (real dataset paths vary per machine) — keep the example tracked
+ml/config/config.yaml
+!ml/config/config.example.yaml
+
+# Datasets — never commit raw or processed data (RSNA/DHA/RHPE licence terms, see docs/data.md)
+ml/data/
+ml/datasets/
+**/boneage-training-dataset/
+**/boneage-validation-dataset/
+**/boneage-test-dataset/
+*.dcm
+
+# Model weights / checkpoints
+*.pt
+*.pth
+*.ckpt
+*.onnx
+ml/checkpoints/
+ml/runs/
+ml/wandb/
+
+# Uploaded patient images / case data (backend runtime storage — see docs/safety-and-ethics.md)
+backend/uploads/
+backend/storage/
+backend/*.db
+backend/*.sqlite3
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Node / frontend
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

@@ -66,14 +66,21 @@ See [docs/model.md](docs/model.md), [docs/architecture.md](docs/architecture.md)
 
 ## Setup
 
-*No code exists yet — this section is a placeholder until scaffolding begins.*
+The repo is scaffolded (`backend/`, `frontend/`, `ml/`), but only the `ml/` data pipeline has real code so far — backend and frontend are placeholders. See [docs/tasks.md](docs/tasks.md) for what's next.
 
-- [ ] TODO: clone instructions
-- [ ] TODO: backend setup (Python env, dependencies, `.env`)
-- [ ] TODO: frontend setup (`npm install`, dev server)
-- [ ] TODO: dataset download + preprocessing steps
-- [ ] TODO: model training / checkpoint download
-- [ ] TODO: running the full stack locally
+**ML data pipeline** (see [ml/README.md](ml/README.md) for details):
+```bash
+pip install -r ml/requirements.txt
+cp ml/config/config.example.yaml ml/config/config.yaml   # then fill in your real RSNA dataset paths
+pytest ml                                                  # runs against a small fake dataset — no download needed
+```
+
+This repo does not include or download the RSNA/DHA/RHPE datasets — get them yourself per [docs/data.md](docs/data.md).
+
+- [ ] TODO: backend setup (Python env, dependencies, `.env`) — not yet implemented
+- [ ] TODO: frontend setup (`npm install`, dev server) — not yet implemented; must match [`design/`](design/README.md) exactly, see [docs/design.md](docs/design.md#design-lock)
+- [ ] TODO: model training / checkpoint download — not yet implemented
+- [ ] TODO: running the full stack locally — not yet implemented
 
 ## Documentation map
 

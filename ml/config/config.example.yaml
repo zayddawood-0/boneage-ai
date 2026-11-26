@@ -55,3 +55,40 @@ augmentation:
 dataloader:
   batch_size: 16
   num_workers: 2
+
+model:
+  # Pretrained CNN backbone (docs/model.md#architecture — exact choice [TBD]).
+  # One of: resnet18, resnet34, efficientnet_b0.
+  backbone: "resnet18"
+  pretrained: true
+  # Dropout in the regression head — also what MC dropout uses at inference
+  # (docs/model.md#uncertainty-approach).
+  dropout: 0.3
+  hidden_dim: 128
+
+training:
+  # All [TBD] per docs/model.md#training-plan — these are reasonable
+  # starting points, not tuned values.
+  epochs: 50
+  learning_rate: 0.0001
+  weight_decay: 0.00001
+  lr_scheduler: "cosine"   # "cosine" or "plateau"
+  early_stopping_patience: 5
+  # Mixed precision only takes effect when a CUDA GPU is available (e.g. on
+  # Kaggle) — silently ignored on CPU.
+  mixed_precision: true
+  checkpoint_dir: "ml/checkpoints"
+  log_every_n_steps: 1
+
+evaluation:
+  # Age-band bucket boundaries for the MAE-by-age-band breakdown — a
+  # placeholder for grouping output, not a clinical claim. Real boundaries
+  # are [TBD], see docs/model.md#evaluation-metrics.
+  age_band_edges_months: [0, 60, 120, 180, 240]
+  within_months_threshold: 12
+  output_dir: "ml/results"
+
+inference:
+  # Number of stochastic forward passes for MC-dropout uncertainty —
+  # [TBD] per docs/model.md#uncertainty-approach.
+  mc_dropout_passes: 20

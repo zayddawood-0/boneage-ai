@@ -20,10 +20,16 @@ Every **Frontend** task below means translating that screen's file in [`design/`
 - [x] Train/validation/test splits with a fixed random seed — `ml/boneage/splits.py`, `ml/boneage/seed.py`
 - [x] PyTorch `Dataset`/`DataLoader` returning `(image, sex, bone_age_months)` — `ml/boneage/datasets.py`, `ml/boneage/dataloaders.py`
 - [x] Unit tests for the pipeline against a small fake dataset (no real data needed) — `ml/tests/`
-- [ ] Train baseline CNN (backbone + sex input) on RSNA
-- [ ] Implement uncertainty estimate via MC dropout
-- [ ] Implement Grad-CAM heatmap generation
-- [ ] Baseline evaluation (MAE overall/by sex/by age band) on RSNA test split
+- [x] Model architecture: pretrained backbone + sex concatenated into the regression head, with dropout for MC dropout — `ml/boneage/model.py`
+- [x] Training script: L1 loss, AdamW, LR schedule, early stopping on val MAE, best-checkpoint saving, mixed precision when a GPU is available, all settings from config — `ml/train.py`, `ml/boneage/training.py`
+- [x] Evaluation script: MAE overall/by sex/by age band, % within ±12 months, on val + test; saves JSON + predicted-vs-true scatter plot — `ml/evaluate.py`, `ml/boneage/evaluation.py`
+- [x] Implement uncertainty estimate via MC dropout — `ml/boneage/model.py` (`set_mc_dropout_mode`), `ml/boneage/inference.py`
+- [x] Implement Grad-CAM heatmap generation — `ml/boneage/gradcam.py`
+- [x] Inference module: checkpoint → bone age + MC-dropout uncertainty (mean/spread over N passes) + Grad-CAM heatmap overlaid on the X-ray — `ml/boneage/inference.py`
+- [x] Kaggle notebook: installs the `boneage` package, points config at the Kaggle `kmader/rsna-bone-age` input, trains on GPU, evaluates, saves checkpoint + results for download — `ml/notebooks/train_kaggle.ipynb`
+- [x] Unit tests: model forward-pass shapes, 1-epoch CPU smoke training run, evaluation output format, inference (age + uncertainty + heatmap) — `ml/tests/`
+- [ ] Train baseline CNN (backbone + sex input) on RSNA — **not run yet; real training only, via `ml/train.py` or the Kaggle notebook**
+- [ ] Baseline evaluation (MAE overall/by sex/by age band) on RSNA test split — **not run yet; depends on the item above**
 
 ### Backend + Agent
 - [ ] Auth (sign in) endpoint + session/token handling

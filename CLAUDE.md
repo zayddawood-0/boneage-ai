@@ -12,7 +12,7 @@ Full product description: [README.md](README.md). Requirements: [docs/requiremen
 
 ## Current state
 
-The repo is scaffolded (`backend/`, `frontend/`, `ml/`, `design/`), but only `ml/` has real code so far: the RSNA data pipeline (config, preprocessing, augmentation, `Dataset`/`DataLoader`, unit tests — see [ml/README.md](ml/README.md)). `backend/` and `frontend/` are placeholders (a README + a bare config file each) — no FastAPI app and no React app exist yet. Model training, the backend, and the frontend have not been started. Check the repo layout below before assuming a path exists.
+The repo is scaffolded (`backend/`, `frontend/`, `ml/`, `design/`), but only `ml/` has real code so far: the RSNA data pipeline (config, preprocessing, augmentation, `Dataset`/`DataLoader`) **and** the model itself — architecture, training loop, evaluation, Grad-CAM, MC-dropout inference, a Kaggle training notebook, and unit tests (see [ml/README.md](ml/README.md)). **No real training has been run yet** — every metric in [docs/model.md](docs/model.md) is still `[TBD]`; do not fill those in until a real checkpoint has actually been trained and evaluated (e.g. via the Kaggle notebook) and the numbers copied in by hand. `backend/` and `frontend/` are placeholders (a README + a bare config file each) — no FastAPI app and no React app exist yet. Check the repo layout below before assuming a path exists.
 
 ## Repo layout (planned)
 
@@ -34,9 +34,12 @@ The repo is scaffolded (`backend/`, `frontend/`, `ml/`, `design/`), but only `ml
 ├── design/                    # APPROVED UI design — frontend must match these files exactly (see below)
 ├── backend/                   # placeholder only (README + requirements.txt) — FastAPI app not yet written
 ├── frontend/                  # placeholder only (README + package.json) — React app not yet written
-├── ml/                         # RSNA data pipeline — real code, see ml/README.md
-│   ├── boneage/                # config, seed, splits, transforms, datasets, dataloaders
+├── ml/                         # data pipeline + model — real code, see ml/README.md
+│   ├── boneage/                # config, seed, splits, transforms, datasets, dataloaders,
+│   │                            # model, metrics, training, evaluation, gradcam, inference
 │   ├── config/                 # config.example.yaml (tracked) / config.yaml (gitignored, local paths)
+│   ├── notebooks/               # train_kaggle.ipynb — GPU training/evaluation on Kaggle
+│   ├── train.py / evaluate.py    # CLI entry points
 │   └── tests/                  # unit tests against a small fake dataset — no real data needed
 └── .gitignore                 # excludes datasets, model weights, uploads, .env
 ```
@@ -49,19 +52,24 @@ The approved UI design for every screen lives in `design/` (see `design/README.m
 
 ## How to run things
 
-**ML data pipeline tests** (real, works today — no dataset download required, runs against a small fake dataset generated in the tests):
+**ML tests** (real, works today — no dataset download or network access required; uses a small fake dataset and `pretrained=False` models):
 ```bash
 pip install -r ml/requirements.txt
 pytest ml
 ```
 
-To point the pipeline at the real RSNA dataset (not needed for tests): copy `ml/config/config.example.yaml` to `ml/config/config.yaml` and fill in your local dataset paths — see [ml/README.md](ml/README.md) and [docs/data.md](docs/data.md).
+**Train/evaluate the model locally** (CPU or GPU) — requires the real RSNA dataset and `ml/config/config.yaml` filled in (copy from `ml/config/config.example.yaml`; see [docs/data.md](docs/data.md)):
+```bash
+python ml/train.py --config ml/config/config.yaml
+python ml/evaluate.py --config ml/config/config.yaml --checkpoint ml/checkpoints/best_model.pt
+```
+
+**Train on Kaggle (GPU):** see `ml/notebooks/train_kaggle.ipynb` and [ml/README.md](ml/README.md#training-on-kaggle).
 
 Everything else is still a placeholder — do not invent commands that don't exist yet, update this file the moment real tooling lands instead:
 
 - [ ] TODO: backend dev server command
 - [ ] TODO: frontend dev server command
-- [ ] TODO: model training command
 - [ ] TODO: backend/frontend test commands
 - [ ] TODO: lint/typecheck commands
 
@@ -69,7 +77,7 @@ Everything else is still a placeholder — do not invent commands that don't exi
 
 *Tech stack confirmed; see [README.md](README.md#tech-stack) and [docs/model.md](docs/model.md), [docs/architecture.md](docs/architecture.md).*
 
-- **Model (Python/PyTorch):** pretrained CNN backbone with sex concatenated into the regression head; Grad-CAM for explainability; uncertainty via MC dropout. Keep training/inference code separate from the FastAPI service; the backend should call a thin inference interface, not reimplement model logic.
+- **Model (Python/PyTorch):** pretrained CNN backbone with sex concatenated into the regression head (`ml/boneage/model.py`); Grad-CAM for explainability (`ml/boneage/gradcam.py`); uncertainty via MC dropout (`ml/boneage/inference.py`). Keep training/inference code separate from the FastAPI service; the backend should call `boneage.inference.predict`/`predict_single_image`, not reimplement model logic.
 - **Backend (FastAPI):** the growth review agent's *flag decision* must stay in deterministic, testable Python functions/tools (`compute_chronological_age`, `get_normal_range`, `compare_gap`) — never let the LLM decide the flag itself. The LLM's role is limited to writing the explanatory note. The agent is built on the **OpenAI Agents SDK**. See [AGENTS.md](AGENTS.md#the-growth-review-agent) for the full contract.
 - **Frontend (React + TypeScript + Vite + Tailwind):** build every screen by translating its corresponding file in `design/` pixel-for-pixel — see [Frontend design (locked)](#frontend-design-locked) above. Theme via CSS variables taken from each design file's LIGHT/DARK token strings (see [docs/design.md](docs/design.md#design-tokens)), never hard-code hex colours in components. Status (normal/flagged) must always carry a text label, never colour alone.
 - **No invented medical facts or numbers.** Do not hard-code clinical thresholds, accuracy figures, or normal ranges as "truth" in code or docs — they are configuration, sourced from settings/reference tables (Greulich & Pyle–based SD reference; exact tables `[TBD, to verify]`), and marked `[TBD]` until the team supplies real values.

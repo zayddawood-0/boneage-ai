@@ -29,8 +29,8 @@ Chronological age is **not** a model input or output — it's computed separatel
 1. Preprocess RSNA images per [data.md](data.md#preprocessing).
 2. Fine-tune the chosen backbone on the RSNA train split; validate on the RSNA validation split; hold out the RSNA test split for final internal evaluation.
 3. Evaluate generalisation and the gap-flagging logic on DHA and/or RHPE (see [data.md](data.md#handling-chronological-age-rsna-gap)).
-4. Hyperparameters (learning rate, batch size, epochs, optimizer, augmentation set): `[TBD]`.
-5. Checkpointing/versioning approach for the hackathon: `[TBD]`.
+4. **Optimizer: confirmed AdamW**, with early stopping on validation MAE and a learning-rate schedule. Numeric hyperparameters (learning rate, batch size, epoch count, schedule type, augmentation strength): `[TBD]` — the values in `ml/config/config.example.yaml` are reasonable starting points for the implementation, not tuned/final settings.
+5. Checkpointing: the best validation-MAE checkpoint is saved during training (see `ml/boneage/training.py`). Versioning approach beyond that for the hackathon: `[TBD]`.
 
 ## Evaluation metrics
 

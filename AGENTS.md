@@ -10,7 +10,7 @@ Guidance for coding agents (Codex, Cursor, Copilot Workspace, etc.) working in t
 
 ## Current state
 
-The repo is scaffolded (`backend/`, `frontend/`, `ml/`, `design/`), but only `ml/` has real code so far: the RSNA data pipeline (config, preprocessing, augmentation, `Dataset`/`DataLoader`, unit tests — see [ml/README.md](ml/README.md)). `backend/` and `frontend/` are placeholders (a README + a bare config file each). Model training, the backend, and the frontend have not been started.
+The repo is scaffolded (`backend/`, `frontend/`, `ml/`, `design/`), but only `ml/` has real code so far: the RSNA data pipeline **and** the model itself — architecture, training loop, evaluation, Grad-CAM, MC-dropout inference, a Kaggle training notebook, and unit tests (see [ml/README.md](ml/README.md)). **No real training has been run yet** — every metric in [docs/model.md](docs/model.md) stays `[TBD]` until a real checkpoint is trained and evaluated (e.g. via the Kaggle notebook) and the numbers copied in by hand; never fabricate them. `backend/` and `frontend/` are placeholders (a README + a bare config file each).
 
 ## Repo layout (planned)
 
@@ -23,7 +23,14 @@ pip install -r ml/requirements.txt
 pytest ml
 ```
 
-runs the ML data pipeline's unit tests (against a small fake dataset — no RSNA download needed). Everything else is still a placeholder. See [CLAUDE.md](CLAUDE.md#how-to-run-things) — update both files together once more real commands exist.
+runs the ML unit tests (small fake dataset, `pretrained=False` — no RSNA download or network access needed).
+
+```bash
+python ml/train.py --config ml/config/config.yaml
+python ml/evaluate.py --config ml/config/config.yaml --checkpoint ml/checkpoints/best_model.pt
+```
+
+trains/evaluates against the real dataset (config.yaml must point at it first — see [docs/data.md](docs/data.md)). For GPU training, see `ml/notebooks/train_kaggle.ipynb`. Everything else is still a placeholder. See [CLAUDE.md](CLAUDE.md#how-to-run-things) — update both files together once more real commands exist.
 
 ## Frontend design (locked)
 
@@ -35,7 +42,7 @@ The approved UI design for every screen lives in `design/` (see `design/README.m
 
 Same as [CLAUDE.md](CLAUDE.md#coding-conventions):
 
-- Model: Python/PyTorch, pretrained CNN backbone, sex concatenated into the regression head, Grad-CAM for heatmaps, uncertainty via MC dropout. Stack confirmed.
+- Model: Python/PyTorch, pretrained CNN backbone, sex concatenated into the regression head (`ml/boneage/model.py`), Grad-CAM for heatmaps (`ml/boneage/gradcam.py`), uncertainty via MC dropout (`ml/boneage/inference.py`). Stack confirmed.
 - Backend: FastAPI. The growth review agent is built on the **OpenAI Agents SDK**. Its flag decision must be deterministic and testable; the LLM only writes the explanatory note.
 - Frontend: React + TypeScript + Vite + Tailwind, built by translating each `design/` file pixel-for-pixel (see [Frontend design (locked)](#frontend-design-locked) above), theming via CSS variables, status always labelled with text (never colour alone).
 - No fabricated medical facts, thresholds, or accuracy numbers — use `[TBD]`.

@@ -14,9 +14,13 @@ from boneage.config import (
     AugmentationConfig,
     DataConfig,
     DataLoaderConfig,
+    EvaluationConfig,
+    InferenceConfig,
+    ModelConfig,
     PipelineConfig,
     PreprocessingConfig,
     SplitPaths,
+    TrainingConfig,
 )
 
 DEFAULT_COLUMN_ALIASES = {
@@ -70,8 +74,12 @@ def make_fake_split(tmp_path):
 
 
 @pytest.fixture
-def small_pipeline_config(make_fake_split, column_aliases) -> PipelineConfig:
-    """A full PipelineConfig pointing at fake train/val/test splits."""
+def small_pipeline_config(tmp_path, make_fake_split, column_aliases) -> PipelineConfig:
+    """A full PipelineConfig pointing at fake train/val/test splits.
+
+    Model/training settings here are deliberately tiny and `pretrained=False`
+    — tests must never hit the network to download ImageNet weights.
+    """
     train_images, train_csv, _ = make_fake_split("train", n=8, seed=1)
     val_images, val_csv, _ = make_fake_split("val", n=4, seed=2)
     test_images, test_csv, _ = make_fake_split("test", n=4, seed=3)
@@ -98,4 +106,21 @@ def small_pipeline_config(make_fake_split, column_aliases) -> PipelineConfig:
             contrast=0.2,
         ),
         dataloader=DataLoaderConfig(batch_size=4, num_workers=0),
+        model=ModelConfig(backbone="resnet18", pretrained=False, dropout=0.3, hidden_dim=16),
+        training=TrainingConfig(
+            epochs=1,
+            learning_rate=1e-3,
+            weight_decay=0.0,
+            lr_scheduler="cosine",
+            early_stopping_patience=1,
+            mixed_precision=False,
+            checkpoint_dir=tmp_path / "checkpoints",
+            log_every_n_steps=1,
+        ),
+        evaluation=EvaluationConfig(
+            age_band_edges_months=[0.0, 60.0, 120.0, 180.0, 240.0],
+            within_months_threshold=12.0,
+            output_dir=tmp_path / "results",
+        ),
+        inference=InferenceConfig(mc_dropout_passes=3),
     )

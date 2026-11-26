@@ -10,7 +10,10 @@ Guidance for coding agents (Codex, Cursor, Copilot Workspace, etc.) working in t
 
 ## Current state
 
-The repo is scaffolded (`backend/`, `frontend/`, `ml/`, `design/`), but only `ml/` has real code so far: the RSNA data pipeline **and** the model itself — architecture, training loop, evaluation, Grad-CAM, MC-dropout inference, a Kaggle training notebook, and unit tests (see [ml/README.md](ml/README.md)). **No real training has been run yet** — every metric in [docs/model.md](docs/model.md) stays `[TBD]` until a real checkpoint is trained and evaluated (e.g. via the Kaggle notebook) and the numbers copied in by hand; never fabricate them. `backend/` and `frontend/` are placeholders (a README + a bare config file each).
+`ml/` and `backend/` both have real code now; `frontend/` is still a placeholder (a README + `package.json` only).
+
+- **`ml/`** — the RSNA data pipeline and the model itself (architecture, training loop, evaluation, Grad-CAM, MC-dropout inference, a Kaggle training notebook), with unit tests (see [ml/README.md](ml/README.md)). **No real training has been run yet** — every metric in [docs/model.md](docs/model.md) stays `[TBD]` until a real checkpoint is trained and evaluated and the numbers copied in by hand; never fabricate them.
+- **`backend/`** — a working FastAPI app: auth + role-based access control, patients, cases, upload + image quality checks, prediction (real model if a checkpoint exists, otherwise a clearly-labelled mock), the growth review agent (see below), doctor decisions, PDF export, settings, and a demo-data seed script. SQLite via Alembic migrations (see [backend/README.md](backend/README.md)). The SD-based reference table is an intentionally empty `[TBD — to verify]` template.
 
 ## Repo layout (planned)
 
@@ -30,7 +33,14 @@ python ml/train.py --config ml/config/config.yaml
 python ml/evaluate.py --config ml/config/config.yaml --checkpoint ml/checkpoints/best_model.pt
 ```
 
-trains/evaluates against the real dataset (config.yaml must point at it first — see [docs/data.md](docs/data.md)). For GPU training, see `ml/notebooks/train_kaggle.ipynb`. Everything else is still a placeholder. See [CLAUDE.md](CLAUDE.md#how-to-run-things) — update both files together once more real commands exist.
+trains/evaluates against the real dataset (config.yaml must point at it first — see [docs/data.md](docs/data.md)). For GPU training, see `ml/notebooks/train_kaggle.ipynb`.
+
+```bash
+pip install -r backend/requirements.txt
+cd backend && alembic upgrade head && uvicorn app.main:app --reload
+```
+
+runs the backend API (Swagger UI at `/docs`); `pytest` from `backend/` runs its tests (own temp SQLite DB, migrated with Alembic, no network/LLM calls needed). See [backend/README.md](backend/README.md) for the seed script and full details. Frontend tooling is still a placeholder. See [CLAUDE.md](CLAUDE.md#how-to-run-things) — update both files together once more real commands exist.
 
 ## Frontend design (locked)
 
@@ -43,7 +53,7 @@ The approved UI design for every screen lives in `design/` (see `design/README.m
 Same as [CLAUDE.md](CLAUDE.md#coding-conventions):
 
 - Model: Python/PyTorch, pretrained CNN backbone, sex concatenated into the regression head (`ml/boneage/model.py`), Grad-CAM for heatmaps (`ml/boneage/gradcam.py`), uncertainty via MC dropout (`ml/boneage/inference.py`). Stack confirmed.
-- Backend: FastAPI. The growth review agent is built on the **OpenAI Agents SDK**. Its flag decision must be deterministic and testable; the LLM only writes the explanatory note.
+- Backend: FastAPI (`backend/app/`). The growth review agent (`backend/app/agent/`) is built on the **OpenAI Agents SDK**. Its flag decision (`tools.py`) must be deterministic and testable; the LLM only writes the explanatory note (`note_writer.py`), given only structured numbers/labels. Role checks go through `backend/app/deps.py`'s `require_roles(...)` on every endpoint.
 - Frontend: React + TypeScript + Vite + Tailwind, built by translating each `design/` file pixel-for-pixel (see [Frontend design (locked)](#frontend-design-locked) above), theming via CSS variables, status always labelled with text (never colour alone).
 - No fabricated medical facts, thresholds, or accuracy numbers — use `[TBD]`.
 - Consistent naming: **BoneAge AI**, **growth review agent**, **review queue**, **case report**.
@@ -61,6 +71,8 @@ Same as [CLAUDE.md](CLAUDE.md#coding-conventions):
 ## The growth review agent
 
 This section is the authoritative spec for the in-product agent that reviews each case after the CNN produces a bone age estimate. Any agent framework code (prompts, tool definitions, orchestration) should implement this contract.
+
+**Implemented** in `backend/app/agent/` (`tools.py`, `reference_table.py`, `note_writer.py`, `review.py`) — see [backend/README.md#the-growth-review-agent](backend/README.md#the-growth-review-agent). It supports two configurable rule types for `get_normal_range` (both described generically as `normal_range_settings` below): **SD-based**, looking up a mean/SD reference table (`backend/data/reference_tables/greulich_pyle_sd_reference.json` — shipped as an empty `[TBD — to verify]` template, so this rule type currently returns "cannot determine" for every case until populated) and **fixed-months**, a flat ± N months around chronological age (works immediately, and is the default).
 
 ### Goal
 

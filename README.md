@@ -66,21 +66,30 @@ See [docs/model.md](docs/model.md), [docs/architecture.md](docs/architecture.md)
 
 ## Setup
 
-The repo is scaffolded (`backend/`, `frontend/`, `ml/`), but only the `ml/` data pipeline has real code so far — backend and frontend are placeholders. See [docs/tasks.md](docs/tasks.md) for what's next.
+The repo is scaffolded (`backend/`, `frontend/`, `ml/`) — `ml/` (data pipeline + model) and `backend/` (API + growth review agent) both have real code; frontend is still a placeholder. See [docs/tasks.md](docs/tasks.md) for what's next.
 
-**ML data pipeline** (see [ml/README.md](ml/README.md) for details):
+**ML data pipeline + model** (see [ml/README.md](ml/README.md) for details):
 ```bash
 pip install -r ml/requirements.txt
 cp ml/config/config.example.yaml ml/config/config.yaml   # then fill in your real RSNA dataset paths
 pytest ml                                                  # runs against a small fake dataset — no download needed
 ```
 
+**Backend API** (see [backend/README.md](backend/README.md) for details):
+```bash
+pip install -r backend/requirements.txt
+cp backend/.env.example backend/.env
+cd backend
+alembic upgrade head                   # creates the SQLite schema
+python scripts/seed_demo_data.py       # optional: demo users + sample cases
+uvicorn app.main:app --reload          # Swagger UI at http://127.0.0.1:8000/docs
+```
+
 This repo does not include or download the RSNA/DHA/RHPE datasets — get them yourself per [docs/data.md](docs/data.md).
 
-- [ ] TODO: backend setup (Python env, dependencies, `.env`) — not yet implemented
 - [ ] TODO: frontend setup (`npm install`, dev server) — not yet implemented; must match [`design/`](design/README.md) exactly, see [docs/design.md](docs/design.md#design-lock)
-- [ ] TODO: model training / checkpoint download — not yet implemented
-- [ ] TODO: running the full stack locally — not yet implemented
+- [ ] TODO: model training (code is ready — see `ml/train.py` — but no real training run has happened yet)
+- [ ] TODO: running the full stack locally (needs the frontend)
 
 ## Documentation map
 

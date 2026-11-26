@@ -1,8 +1,20 @@
-# Planned backend dependencies (see docs/architecture.md, docs/model.md).
-# Not yet installed/used — no application code exists in backend/ yet.
-fastapi
+fastapi==0.165.0
+starlette==1.10.0
 uvicorn[standard]
-pydantic
-sqlalchemy
-python-multipart
-openai-agents
+sqlalchemy==2.0.35
+alembic==1.13.3
+pydantic==2.14.3
+pydantic-settings==2.5.2
+bcrypt==5.0.0
+PyJWT==2.15.1
+reportlab==4.5.1
+python-multipart==0.0.32
+httpx==0.27.0
+pytest==8.2.2
+openai-agents==0.24.0
+PyYAML
+Pillow
+numpy
+torch
+torchvision
+pandas

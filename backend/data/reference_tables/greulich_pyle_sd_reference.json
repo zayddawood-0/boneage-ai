@@ -1,0 +1,14 @@
+{
+  "_meta": {
+    "status": "[TBD — to verify]",
+    "note": "Empty template. This file intentionally contains no SD values. Before the SD-based rule type can be used for any real decision, populate 'male' and 'female' below with a verified Greulich & Pyle-based (or equivalent, clinically sourced) mean/SD bone-age-by-chronological-age table. Do not invent values here — see docs/data.md and docs/model.md (both mark the exact reference basis as [TBD, to verify]). Until populated, get_normal_range() will find no matching entry for any sex/age, and the growth review agent will report flag_status='needs_review' (gap_direction='uncertain') rather than guess.",
+    "schema": {
+      "age_months_min": "int — inclusive lower bound of the age band, in months",
+      "age_months_max": "int — exclusive upper bound of the age band, in months",
+      "mean_bone_age_months": "float — population mean bone age for this sex/age band, in months",
+      "sd_months": "float — population standard deviation of bone age for this sex/age band, in months"
+    }
+  },
+  "male": [],
+  "female": []
+}

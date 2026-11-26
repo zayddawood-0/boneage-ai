@@ -32,14 +32,14 @@ Every **Frontend** task below means translating that screen's file in [`design/`
 - [ ] Baseline evaluation (MAE overall/by sex/by age band) on RSNA test split — **not run yet; depends on the item above**
 
 ### Backend + Agent
-- [ ] Auth (sign in) endpoint + session/token handling
-- [ ] Patient + case data models and CRUD endpoints
-- [ ] Image upload endpoint + image quality checks (hand detected, orientation, resolution, burned-in detail removal)
-- [ ] Integrate model inference endpoint (calls ML's inference interface)
-- [ ] Implement growth review agent (OpenAI Agents SDK) deterministic tools: `compute_chronological_age`, `get_normal_range`, `compare_gap`
-- [ ] Implement `write_doctor_note` (LLM call via OpenAI Agents SDK) per [AGENTS.md](../AGENTS.md#the-growth-review-agent) — pass only structured numbers/labels, never images or patient names
-- [ ] Settings endpoints (normal-range config, auto-clear, uncertainty threshold, retention)
-- [ ] Role-based access control enforcing the permission matrix in [requirements.md](requirements.md#user-roles)
+- [x] Auth (sign in) endpoint + session/token handling — `backend/app/routers/auth.py`, `backend/app/security.py` (bcrypt + JWT)
+- [x] Patient + case data models and CRUD endpoints — `backend/app/models.py`, `backend/app/routers/patients.py`, `backend/app/routers/cases.py`; SQLite via Alembic migrations (`backend/migrations/`)
+- [x] Image upload endpoint + image quality checks (hand detected, orientation, resolution, burned-in detail removal) — `backend/app/routers/cases.py` (`/upload`), `backend/app/quality.py`
+- [x] Integrate model inference endpoint (calls ML's inference interface) — `backend/app/routers/cases.py` (`/predict`), `backend/app/inference_adapter.py`; falls back to a clearly-labelled mock predictor when no checkpoint exists yet, and the response always reports `prediction_source: real|mock`
+- [x] Implement growth review agent (OpenAI Agents SDK) deterministic tools: `compute_chronological_age`, `get_normal_range`, `compare_gap` — `backend/app/agent/tools.py`; supports both SD-based (reference table in `backend/data/reference_tables/greulich_pyle_sd_reference.json`, shipped as an empty `[TBD — to verify]` template) and fixed-months rule types
+- [x] Implement `write_doctor_note` (LLM call via OpenAI Agents SDK) per [AGENTS.md](../AGENTS.md#the-growth-review-agent) — pass only structured numbers/labels, never images or patient names — `backend/app/agent/note_writer.py`; falls back to a fixed template note when `OPENAI_API_KEY` is unset or the call fails
+- [x] Settings endpoints (normal-range config, auto-clear, uncertainty threshold, retention) — `backend/app/routers/settings.py` (admin only)
+- [x] Role-based access control enforcing the permission matrix in [requirements.md](requirements.md#user-roles) — `backend/app/deps.py` (`require_roles`), applied to every endpoint
 
 ### Frontend
 - [ ] Set up design tokens (CSS variables) + theme toggle using the LIGHT/DARK strings from `design/Main.html`/`design/Dark.html` per [design.md](design.md#design-tokens)
@@ -56,12 +56,12 @@ Every **Frontend** task below means translating that screen's file in [`design/`
 - [ ] Draft model card ([model.md](model.md#model-card-template)) with real results once available
 
 ### Backend + Agent
-- [ ] Review queue endpoint (filter/sort/paginate) per [api.md](api.md#cases)
-- [ ] Case report endpoint (full payload incl. prior scans)
-- [ ] Doctor decision endpoint
-- [ ] PDF export endpoint
-- [ ] Follow-up scheduling endpoint
-- [ ] Agent auditability: ensure every flag decision is traceable to `compare_gap` output, not just the LLM note
+- [x] Review queue endpoint (filter/sort/paginate) per [api.md](api.md#cases) — `GET /cases` in `backend/app/routers/cases.py`
+- [x] Case report endpoint (full payload incl. prior scans) — `GET /cases/{id}`
+- [x] Doctor decision endpoint — `POST /cases/{id}/decision` (doctor role only, per the permission matrix)
+- [x] PDF export endpoint — `GET /cases/{id}/report.pdf`, `backend/app/pdf.py` (reportlab)
+- [x] Follow-up scheduling endpoint — `POST /cases/{id}/follow-up`
+- [x] Agent auditability: ensure every flag decision is traceable to `compare_gap` output, not just the LLM note — `flag_status`/`gap_direction`/`flag_reason` are stored on the case independently of `doctor_note`; covered by `backend/tests/test_agent_rules.py`
 
 ### Frontend
 - [ ] Review queue screen (status tabs, search, sex filter, sort, pagination) — translate `design/Queue.html`
@@ -76,9 +76,9 @@ Every **Frontend** task below means translating that screen's file in [`design/`
 - [ ] Document limitations for the model card and UI limitations section
 
 ### Backend + Agent
-- [ ] Model performance endpoint
-- [ ] Settings persistence + validation
-- [ ] Data & privacy settings (retention, de-identification controls) per [safety-and-ethics.md](safety-and-ethics.md)
+- [x] Model performance endpoint — `GET /model/performance`, `backend/app/routers/model_performance.py` (returns real numbers if `ml/evaluate.py` has produced results, otherwise `[TBD]` — never fabricated)
+- [x] Settings persistence + validation — `backend/app/routers/settings.py` (Pydantic-validated `PUT /settings`, persisted to the `growth_review_settings` row)
+- [ ] Data & privacy settings (retention, de-identification controls) per [safety-and-ethics.md](safety-and-ethics.md) — `retention_days` is a stored, configurable setting, but no scheduled job actually enforces/deletes data past retention yet; de-identification is currently an always-on heuristic check (`backend/app/quality.py`), not a separate configurable toggle
 
 ### Frontend
 - [ ] Model performance screen (MAE breakdowns, predicted-vs-true chart, model card, limitations) — translate `design/Model.html`
@@ -88,8 +88,8 @@ Every **Frontend** task below means translating that screen's file in [`design/`
 
 ## Phase 4 — Integration, testing, demo prep
 
-- [ ] End-to-end run-through of the full flow (sign in → intake → upload → predict → agent → queue → decision → export)
-- [ ] Seed demo data: a handful of cases spanning flagged/normal, both sexes, a few age bands
+- [x] End-to-end run-through of the full flow (sign in → intake → upload → predict → agent → queue → decision → export) — backend-only, automated in `backend/tests/test_api_flow.py`; a real manual run-through still needs the frontend
+- [x] Seed demo data: a handful of cases spanning flagged/normal, both sexes, a few age bands — `backend/scripts/seed_demo_data.py`, matching `design/Queue.html`/`design/Patients.html` exactly (BA-1037..BA-1042), clearly marked `is_demo=True`
 - [ ] Run through [testing.md](testing.md) test plan
 - [ ] Rehearse demo script ([testing.md](testing.md#demo-script))
 - [ ] Final check of disclaimers/safety copy across UI and docs per [safety-and-ethics.md](safety-and-ethics.md)

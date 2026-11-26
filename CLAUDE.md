@@ -12,7 +12,12 @@ Full product description: [README.md](README.md). Requirements: [docs/requiremen
 
 ## Current state
 
-The repo is scaffolded (`backend/`, `frontend/`, `ml/`, `design/`), but only `ml/` has real code so far: the RSNA data pipeline (config, preprocessing, augmentation, `Dataset`/`DataLoader`) **and** the model itself — architecture, training loop, evaluation, Grad-CAM, MC-dropout inference, a Kaggle training notebook, and unit tests (see [ml/README.md](ml/README.md)). **No real training has been run yet** — every metric in [docs/model.md](docs/model.md) is still `[TBD]`; do not fill those in until a real checkpoint has actually been trained and evaluated (e.g. via the Kaggle notebook) and the numbers copied in by hand. `backend/` and `frontend/` are placeholders (a README + a bare config file each) — no FastAPI app and no React app exist yet. Check the repo layout below before assuming a path exists.
+`ml/` and `backend/` both have real code now; `frontend/` is still a placeholder (a README + `package.json` only — no React app yet).
+
+- **`ml/`** — the RSNA data pipeline (config, preprocessing, augmentation, `Dataset`/`DataLoader`) and the model itself (architecture, training loop, evaluation, Grad-CAM, MC-dropout inference, a Kaggle training notebook), with unit tests. See [ml/README.md](ml/README.md). **No real training has been run yet** — every metric in [docs/model.md](docs/model.md) is still `[TBD]`; do not fill those in until a real checkpoint has actually been trained and evaluated and the numbers copied in by hand.
+- **`backend/`** — a working FastAPI app: auth + role-based access control, patients, cases, upload + image quality checks, prediction (real `ml/boneage/inference.py` if a checkpoint exists, otherwise a clearly-labelled mock), the growth review agent (deterministic rules + OpenAI-Agents-SDK note-writing with a template fallback), doctor decisions, PDF export, settings, and a demo-data seed script. SQLite via Alembic migrations. See [backend/README.md](backend/README.md). The SD-based reference table is an intentionally empty `[TBD — to verify]` template — no SD values have been filled in.
+
+Check the repo layout below before assuming a path exists.
 
 ## Repo layout (planned)
 
@@ -32,7 +37,12 @@ The repo is scaffolded (`backend/`, `frontend/`, `ml/`, `design/`), but only `ml
 │   ├── testing.md              # test strategy, demo script
 │   └── safety-and-ethics.md   # disclaimer, bias, privacy, human-in-the-loop
 ├── design/                    # APPROVED UI design — frontend must match these files exactly (see below)
-├── backend/                   # placeholder only (README + requirements.txt) — FastAPI app not yet written
+├── backend/                   # FastAPI app — real code, see backend/README.md
+│   ├── app/                    # routers, models, agent/ (growth review agent), inference_adapter, etc.
+│   ├── migrations/              # Alembic (SQLite schema)
+│   ├── data/reference_tables/    # SD reference table — empty [TBD] template
+│   ├── scripts/                   # seed_demo_data.py
+│   └── tests/                      # pytest — real DB via migrations, no network/LLM needed
 ├── frontend/                  # placeholder only (README + package.json) — React app not yet written
 ├── ml/                         # data pipeline + model — real code, see ml/README.md
 │   ├── boneage/                # config, seed, splits, transforms, datasets, dataloaders,
@@ -66,11 +76,27 @@ python ml/evaluate.py --config ml/config/config.yaml --checkpoint ml/checkpoints
 
 **Train on Kaggle (GPU):** see `ml/notebooks/train_kaggle.ipynb` and [ml/README.md](ml/README.md#training-on-kaggle).
 
+**Backend API** (see [backend/README.md](backend/README.md) for full details):
+```bash
+pip install -r backend/requirements.txt
+cp backend/.env.example backend/.env
+cd backend
+alembic upgrade head                   # creates the SQLite schema
+python scripts/seed_demo_data.py       # optional: demo users + BA-1037..1042 sample cases
+uvicorn app.main:app --reload
+```
+Then open http://127.0.0.1:8000/docs for the Swagger UI.
+
+**Backend tests** (real, works today — own temp SQLite DB per run, migrated with Alembic, no network/LLM calls needed):
+```bash
+cd backend
+pytest
+```
+
 Everything else is still a placeholder — do not invent commands that don't exist yet, update this file the moment real tooling lands instead:
 
-- [ ] TODO: backend dev server command
 - [ ] TODO: frontend dev server command
-- [ ] TODO: backend/frontend test commands
+- [ ] TODO: frontend test commands
 - [ ] TODO: lint/typecheck commands
 
 ## Coding conventions
@@ -78,7 +104,7 @@ Everything else is still a placeholder — do not invent commands that don't exi
 *Tech stack confirmed; see [README.md](README.md#tech-stack) and [docs/model.md](docs/model.md), [docs/architecture.md](docs/architecture.md).*
 
 - **Model (Python/PyTorch):** pretrained CNN backbone with sex concatenated into the regression head (`ml/boneage/model.py`); Grad-CAM for explainability (`ml/boneage/gradcam.py`); uncertainty via MC dropout (`ml/boneage/inference.py`). Keep training/inference code separate from the FastAPI service; the backend should call `boneage.inference.predict`/`predict_single_image`, not reimplement model logic.
-- **Backend (FastAPI):** the growth review agent's *flag decision* must stay in deterministic, testable Python functions/tools (`compute_chronological_age`, `get_normal_range`, `compare_gap`) — never let the LLM decide the flag itself. The LLM's role is limited to writing the explanatory note. The agent is built on the **OpenAI Agents SDK**. See [AGENTS.md](AGENTS.md#the-growth-review-agent) for the full contract.
+- **Backend (FastAPI):** the growth review agent's *flag decision* must stay in deterministic, testable Python functions/tools (`compute_chronological_age`, `get_normal_range`, `compare_gap` — `backend/app/agent/tools.py`) — never let the LLM decide the flag itself. The LLM's role is limited to writing the explanatory note (`backend/app/agent/note_writer.py`), built on the **OpenAI Agents SDK**, given only structured numbers/labels. See [AGENTS.md](AGENTS.md#the-growth-review-agent) for the full contract. Role checks go through `backend/app/deps.py`'s `require_roles(...)` on every endpoint — never rely on the frontend alone.
 - **Frontend (React + TypeScript + Vite + Tailwind):** build every screen by translating its corresponding file in `design/` pixel-for-pixel — see [Frontend design (locked)](#frontend-design-locked) above. Theme via CSS variables taken from each design file's LIGHT/DARK token strings (see [docs/design.md](docs/design.md#design-tokens)), never hard-code hex colours in components. Status (normal/flagged) must always carry a text label, never colour alone.
 - **No invented medical facts or numbers.** Do not hard-code clinical thresholds, accuracy figures, or normal ranges as "truth" in code or docs — they are configuration, sourced from settings/reference tables (Greulich & Pyle–based SD reference; exact tables `[TBD, to verify]`), and marked `[TBD]` until the team supplies real values.
 - Naming: use **BoneAge AI**, **growth review agent**, **review queue**, **case report** consistently across code, UI copy, and docs — matches the terms used throughout `docs/`.

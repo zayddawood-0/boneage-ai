@@ -1,0 +1,108 @@
+@import 'tailwindcss';
+
+/*
+  Design tokens — copied verbatim from the LIGHT/DARK strings in every
+  design/*.html file's renderVals() (see design/README.md). Do not hand-tune
+  these; if design/ changes, re-copy from there.
+*/
+:root {
+  --bg: #f5f3ef;
+  --surface: #ffffff;
+  --ink: #1c1917;
+  --muted: #5c5650;
+  --text2: #3f3a35;
+  --border: #e5e0d8;
+  --row: #efebe5;
+  --input: #d6d0c7;
+  --line: #cbc4ba;
+  --dash: #bdb5aa;
+  --soft: #faf8f5;
+  --soft-blue: #eef5f1;
+  --seg: #efebe5;
+  --track: #e8e3dc;
+  --band: #cfe5da;
+  --band2: #dcede4;
+  --ok-bg: #e3f0e9;
+  --ok-text: #1a4d3a;
+  --flag-bg: #fdf0dc;
+  --flag-text: #7a3e00;
+  --gap-bg: #fef6ea;
+  --gap-border: #f0d3a8;
+  --gap-label: #6b3a0a;
+  --flag: #b45309;
+  --avatar: #e3f0e9;
+  --accent-text: #24614b;
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --bg: #12110f;
+  --surface: #1c1a17;
+  --ink: #ede9e3;
+  --muted: #a8a097;
+  --text2: #cfc8bf;
+  --border: #2e2a25;
+  --row: #26231f;
+  --input: #3a352f;
+  --line: #47413a;
+  --dash: #47413a;
+  --soft: #211f1b;
+  --soft-blue: #1a2a23;
+  --seg: #26231f;
+  --track: #2e2a25;
+  --band: #24453a;
+  --band2: #1e3a30;
+  --ok-bg: #1e3a30;
+  --ok-text: #b5e3cc;
+  --flag-bg: #3a2610;
+  --flag-text: #ffc98a;
+  --gap-bg: #2b1e0f;
+  --gap-border: #5c3d17;
+  --gap-label: #f3cfa0;
+  --flag: #f2a65a;
+  --avatar: #1e3a30;
+  --accent-text: #7cc4a4;
+  color-scheme: dark;
+}
+
+/*
+  Colours fixed across both themes (design/README.md): sidebar, primary
+  button, X-ray panel, heatmap gradient. Kept as literal values in
+  components, not tokens — listed here only for reference.
+  sidebar: #1C1917   primary button: #24614B (white text)
+  X-ray panel: #0E0D0C   heatmap: #3B0F70 -> #B73779 -> #FC8961 -> #FCFDBF
+*/
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+}
+
+a {
+  color: var(--accent-text);
+}
+a:hover {
+  color: #1a4d3a;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.font-mono-ibm {
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+/* Visible focus ring everywhere (docs/design.md accessibility rules) */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}

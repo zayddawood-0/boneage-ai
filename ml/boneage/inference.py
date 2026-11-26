@@ -15,7 +15,7 @@ import torch
 from PIL import Image
 
 from .config import PreprocessingConfig
-from .gradcam import GradCAM, overlay_heatmap_on_image
+from .gradcam import GradCAM, heatmap_layer_image, overlay_heatmap_on_image
 from .model import BoneAgeModel, set_mc_dropout_mode
 from .transforms import ResizeWithPad, build_transforms, load_and_orient
 
@@ -25,7 +25,9 @@ class PredictionResult:
     bone_age_months: float
     uncertainty_months: float
     mc_dropout_samples: list[float]
-    heatmap_image: Image.Image
+    heatmap_image: Image.Image  # pre-blended X-ray + heatmap (PDF report)
+    plain_image: Image.Image  # the preprocessed X-ray alone (RGB), no heatmap
+    heatmap_layer: Image.Image  # the Grad-CAM heatmap alone (RGBA), same size as plain_image
 
 
 def load_checkpoint(
@@ -85,13 +87,17 @@ def predict_single_image(
         cam = cam_fn(image_tensor, sex_tensor)
 
     padded_image = ResizeWithPad(preprocessing_config.image_size)(base_image)
+    plain_image = padded_image.convert("RGB")
     heatmap_image = overlay_heatmap_on_image(padded_image, cam)
+    heatmap_layer = heatmap_layer_image(cam, plain_image.size)
 
     return PredictionResult(
         bone_age_months=bone_age_months,
         uncertainty_months=uncertainty_months,
         mc_dropout_samples=samples,
         heatmap_image=heatmap_image,
+        plain_image=plain_image,
+        heatmap_layer=heatmap_layer,
     )
 
 

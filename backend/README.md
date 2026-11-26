@@ -70,6 +70,8 @@ alembic downgrade -1                                      # roll back one step
 
 `POST /cases/{id}/predict` calls [`ml/boneage/inference.py`](../ml/boneage/inference.py) if a trained checkpoint exists at `ML_CHECKPOINT_PATH` (see [ml/README.md](../ml/README.md) — no real training has been run yet, see [docs/model.md](../docs/model.md)). If it doesn't, the API transparently falls back to a clearly-labelled mock predictor (`app/inference_adapter.py`) so the app is demoable before training finishes. Every prediction response includes `prediction_source: "real" | "mock"` — the mock path also always carries a deliberately wide uncertainty, so the growth review agent flags mock results as `"uncertain"` rather than letting them look like a trusted real measurement.
 
+It generates three same-sized images per case (`app/storage.py`): `GET /cases/{id}/heatmap` (pre-blended, for the PDF), `GET /cases/{id}/image` (the plain X-ray alone — always real, even in mock mode), and `GET /cases/{id}/heatmap-layer` (the heatmap alone, transparent PNG, so the frontend can composite the two independently — adjustable opacity, side-by-side view). In mock mode only the heatmap layer is fabricated (a visibly-marked flat amber tint + "MOCK HEATMAP" text), never the X-ray itself.
+
 ## The growth review agent
 
 See [AGENTS.md](../AGENTS.md#the-growth-review-agent) for the full spec. In short: `app/agent/tools.py` makes the flag decision in plain, deterministic Python (never the LLM); `app/agent/note_writer.py` is the one LLM-authored step (OpenAI Agents SDK, only ever given structured numbers/labels — never the image or patient name), falling back to a fixed template note when `OPENAI_API_KEY` is unset or the call fails.

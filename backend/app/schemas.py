@@ -100,6 +100,8 @@ class PredictResponse(BaseModel):
     bone_age_months: float
     uncertainty_months: float
     heatmap_url: str
+    image_url: str
+    heatmap_layer_url: str
     prediction_source: PredictionSource
 
 
@@ -145,6 +147,8 @@ class CaseDetail(BaseModel):
     bone_age_months: float | None
     uncertainty_months: float | None
     heatmap_url: str | None
+    image_url: str | None
+    heatmap_layer_url: str | None
     prediction_source: PredictionSource | None
 
     chronological_age_months: int | None

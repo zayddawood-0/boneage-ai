@@ -1,7 +1,32 @@
-# Frontend (not yet implemented)
+# React + TypeScript + Vite
 
-Placeholder scaffold for the React + TypeScript + Vite + Tailwind frontend. No application code exists here yet.
+This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 
-**Before writing any component, read [docs/design.md](../docs/design.md#design-lock) and `design/README.md`.** The frontend must match the files in `design/` exactly — see [CLAUDE.md](../CLAUDE.md#frontend-design-locked) / [AGENTS.md](../AGENTS.md#frontend-design-locked) for the full rule. Do not redesign, restyle, or "improve" a screen.
+Currently, two official plugins are available:
 
-See [docs/tasks.md](../docs/tasks.md) Phase 1 "Frontend" tasks for what's planned next.
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+
+## React Compiler
+
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+
+## Expanding the Oxlint configuration
+
+If you are developing a production application, we recommend enabling type-aware lint rules by installing `tsrs` and editing `.oxlintrc.json`:
+
+```json
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["react", "typescript", "oxc"],
+  "options": {
+    "typeAware": true
+  },
+  "rules": {
+    "react/rules-of-hooks": "error",
+    "react/only-export-components": ["warn", { "allowConstantExport": true }]
+  }
+}
+```
+
+See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.

@@ -74,20 +74,17 @@ class GradCAM:
         self.close()
 
 
-def overlay_heatmap_on_image(
-    base_image: Image.Image, cam: np.ndarray, alpha: float = 0.45
-) -> Image.Image:
-    """Alpha-blend an inferno-coloured `cam` (values in [0, 1]) over `base_image`.
-
-    `cam` is resized (nearest the feature-map resolution) up to `base_image`'s
-    size before colouring. Uses matplotlib's "inferno" colormap, matching the
+def _resize_and_colorize_cam(cam: np.ndarray, size: tuple[int, int]) -> tuple[np.ndarray, np.ndarray]:
+    """Resizes `cam` (values in [0, 1]) to `size` = (width, height) and
+    colours it with matplotlib's "inferno" colormap, matching the
     `#3B0F70 → #B73779 → #FC8961 → #FCFDBF` scale in docs/design.md.
+
+    Returns `(colored_rgb_uint8, cam_resized_float)` — the resized cam is
+    also returned so callers can derive a per-pixel alpha from it.
     """
     import matplotlib
 
-    base_rgb = base_image.convert("RGB")
-    width, height = base_rgb.size
-
+    width, height = size
     cam_uint8 = (np.clip(cam, 0.0, 1.0) * 255).astype(np.uint8)
     cam_resized = np.asarray(
         Image.fromarray(cam_uint8).resize((width, height), Image.BILINEAR)
@@ -95,6 +92,37 @@ def overlay_heatmap_on_image(
 
     colormap = matplotlib.colormaps["inferno"]
     colored = (colormap(cam_resized)[:, :, :3] * 255).astype(np.uint8)
-    heatmap_img = Image.fromarray(colored, mode="RGB")
+    return colored, cam_resized
 
+
+def overlay_heatmap_on_image(
+    base_image: Image.Image, cam: np.ndarray, alpha: float = 0.45
+) -> Image.Image:
+    """Alpha-blend an inferno-coloured `cam` (values in [0, 1]) over `base_image`.
+
+    `cam` is resized (nearest the feature-map resolution) up to `base_image`'s
+    size before colouring. This is the single flattened (pre-blended) image
+    used for the PDF report — see `heatmap_layer_image` for the separate,
+    transparent heatmap layer used by the frontend's independent-layer viewer.
+    """
+    base_rgb = base_image.convert("RGB")
+    colored, _ = _resize_and_colorize_cam(cam, base_rgb.size)
+    heatmap_img = Image.fromarray(colored, mode="RGB")
     return Image.blend(base_rgb, heatmap_img, alpha=alpha)
+
+
+def heatmap_layer_image(cam: np.ndarray, size: tuple[int, int], max_alpha: int = 200) -> Image.Image:
+    """The Grad-CAM heatmap alone, as an RGBA image the same `size` as the
+    base image it's meant to sit on top of — inferno colours, with each
+    pixel's alpha channel proportional to its own attention value (so
+    low-attention regions are near-transparent and high-attention regions
+    are vividly coloured), scaled by `max_alpha` (0-255).
+
+    Lets the frontend composite this over the plain X-ray itself and control
+    the layer's overall opacity independently (see docs/api.md
+    `GET /cases/{id}/heatmap-layer`).
+    """
+    colored, cam_resized = _resize_and_colorize_cam(cam, size)
+    alpha_channel = (np.clip(cam_resized, 0.0, 1.0) * max_alpha).astype(np.uint8)
+    rgba = np.dstack([colored, alpha_channel])
+    return Image.fromarray(rgba, mode="RGBA")

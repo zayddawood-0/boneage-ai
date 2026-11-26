@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from . import models, schemas
-from .storage import heatmap_url_for_case
+from .storage import heatmap_layer_url_for_case, heatmap_url_for_case, image_url_for_case
 
 
 def case_to_list_item(case: models.Case) -> schemas.CaseListItem:
@@ -23,6 +23,8 @@ def case_to_list_item(case: models.Case) -> schemas.CaseListItem:
 
 def case_to_detail(case: models.Case, prior_cases: list[models.Case]) -> schemas.CaseDetail:
     heatmap_url = heatmap_url_for_case(case.id) if case.heatmap_path else None
+    image_url = image_url_for_case(case.id) if case.display_image_path else None
+    heatmap_layer_url = heatmap_layer_url_for_case(case.id) if case.heatmap_layer_path else None
     return schemas.CaseDetail(
         id=case.id,
         case_code=case.case_code,
@@ -37,6 +39,8 @@ def case_to_detail(case: models.Case, prior_cases: list[models.Case]) -> schemas
         bone_age_months=case.bone_age_months,
         uncertainty_months=case.uncertainty_months,
         heatmap_url=heatmap_url,
+        image_url=image_url,
+        heatmap_layer_url=heatmap_layer_url,
         prediction_source=case.prediction_source,
         chronological_age_months=case.chronological_age_months,
         gap_months=case.gap_months,

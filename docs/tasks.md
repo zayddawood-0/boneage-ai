@@ -42,10 +42,10 @@ Every **Frontend** task below means translating that screen's file in [`design/`
 - [x] Role-based access control enforcing the permission matrix in [requirements.md](requirements.md#user-roles) — `backend/app/deps.py` (`require_roles`), applied to every endpoint
 
 ### Frontend
-- [ ] Set up design tokens (CSS variables) + theme toggle using the LIGHT/DARK strings from `design/Main.html`/`design/Dark.html` per [design.md](design.md#design-tokens)
-- [ ] Sign in screen — translate `design/Login.html`
-- [ ] New analysis 3-step flow (patient details → upload → result) — translate `design/NewAnalysis.html`
-- [ ] Dashboard shell — translate `design/Main.html` (light) and `design/Dark.html` (dark reference)
+- [x] Set up design tokens (CSS variables) + theme toggle using the LIGHT/DARK strings from `design/Main.html`/`design/Dark.html` per [design.md](design.md#design-tokens) — `frontend/src/index.css`, `frontend/src/theme/ThemeContext.tsx`
+- [x] Sign in screen — translate `design/Login.html` — `frontend/src/pages/LoginPage.tsx`
+- [x] New analysis 3-step flow (patient details → upload → result) — translate `design/NewAnalysis.html` — `frontend/src/pages/NewAnalysisPage.tsx`
+- [x] Dashboard shell — translate `design/Main.html` (light) and `design/Dark.html` (dark reference) — `frontend/src/pages/DashboardPage.tsx`
 
 ## Phase 2 — Review workflow
 
@@ -64,10 +64,10 @@ Every **Frontend** task below means translating that screen's file in [`design/`
 - [x] Agent auditability: ensure every flag decision is traceable to `compare_gap` output, not just the LLM note — `flag_status`/`gap_direction`/`flag_reason` are stored on the case independently of `doctor_note`; covered by `backend/tests/test_agent_rules.py`
 
 ### Frontend
-- [ ] Review queue screen (status tabs, search, sex filter, sort, pagination) — translate `design/Queue.html`
-- [ ] Case report screen (X-ray + heatmap viewer, measurements, agent reasoning, decision controls, PDF export, follow-up scheduling) — translate `design/Case.html`
-- [ ] Patients screen — translate `design/Patients.html`
-- [ ] Dashboard: summary cards, growth review agent panel, bone age vs. chronological age chart, review queue preview — refine from `design/Main.html`/`design/Dark.html`
+- [x] Review queue screen (status tabs, search, sex filter, sort, pagination) — translate `design/Queue.html` — `frontend/src/pages/QueuePage.tsx`
+- [x] Case report screen (X-ray + heatmap viewer, measurements, agent reasoning, decision controls, PDF export, follow-up scheduling) — translate `design/Case.html` — `frontend/src/pages/CaseReportPage.tsx`, `frontend/src/components/HeatmapViewer.tsx`
+- [x] Patients screen — translate `design/Patients.html` — `frontend/src/pages/PatientsPage.tsx`
+- [x] Dashboard: summary cards, growth review agent panel, bone age vs. chronological age chart, review queue preview — refine from `design/Main.html`/`design/Dark.html` — `frontend/src/pages/DashboardPage.tsx`, `frontend/src/lib/scanChart.ts`
 
 ## Phase 3 — Model performance, settings, polish
 
@@ -81,10 +81,10 @@ Every **Frontend** task below means translating that screen's file in [`design/`
 - [ ] Data & privacy settings (retention, de-identification controls) per [safety-and-ethics.md](safety-and-ethics.md) — `retention_days` is a stored, configurable setting, but no scheduled job actually enforces/deletes data past retention yet; de-identification is currently an always-on heuristic check (`backend/app/quality.py`), not a separate configurable toggle
 
 ### Frontend
-- [ ] Model performance screen (MAE breakdowns, predicted-vs-true chart, model card, limitations) — translate `design/Model.html`
-- [ ] Settings screen (flagging rules, agent behaviour, theme + age units, data & privacy, account) — translate `design/Settings.html`
-- [ ] Accessibility pass (WCAG AA, status labels, keyboard nav) per [design.md](design.md#accessibility-rules)
-- [ ] Dark theme pass across all screens, checked against each file's DARK token string
+- [x] Model performance screen (MAE breakdowns, predicted-vs-true chart, model card, limitations) — translate `design/Model.html` — `frontend/src/pages/ModelPerformancePage.tsx` (shows `[TBD]` for every metric the API has no real value for yet, per task instructions)
+- [x] Settings screen (flagging rules, agent behaviour, theme + age units, data & privacy, account) — translate `design/Settings.html` — `frontend/src/pages/SettingsPage.tsx`
+- [x] Accessibility pass (WCAG AA, status labels, keyboard nav) per [design.md](design.md#accessibility-rules) — real buttons/links/labels throughout, status never colour-only (`StatusChip`), global `:focus-visible` ring in `frontend/src/index.css`
+- [x] Dark theme pass across all screens, checked against each file's DARK token string — `[data-theme="dark"]` variables in `frontend/src/index.css`; verified by browser smoke test across Login/Dashboard/Queue/Case/Patients/Model/Settings
 
 ## Phase 4 — Integration, testing, demo prep
 

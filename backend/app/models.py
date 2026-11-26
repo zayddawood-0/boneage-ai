@@ -59,7 +59,9 @@ class Case(Base):
     # Prediction (ml/boneage/inference.py, or the mock fallback — see prediction_source)
     bone_age_months: Mapped[float | None] = mapped_column(Float, nullable=True)
     uncertainty_months: Mapped[float | None] = mapped_column(Float, nullable=True)
-    heatmap_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    heatmap_path: Mapped[str | None] = mapped_column(String(500), nullable=True)  # pre-blended (PDF)
+    display_image_path: Mapped[str | None] = mapped_column(String(500), nullable=True)  # plain X-ray
+    heatmap_layer_path: Mapped[str | None] = mapped_column(String(500), nullable=True)  # heatmap alone
     prediction_source: Mapped[str | None] = mapped_column(String(10), nullable=True)  # real | mock
 
     # Growth review agent (AGENTS.md#the-growth-review-agent)

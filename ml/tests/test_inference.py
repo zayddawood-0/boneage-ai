@@ -35,6 +35,16 @@ def test_predict_single_image_returns_age_uncertainty_and_heatmap(
     assert result.heatmap_image.size == (size, size)
     assert result.heatmap_image.mode == "RGB"
 
+    # Independent layers for the frontend's viewer (see backend
+    # /cases/{id}/image and /cases/{id}/heatmap-layer).
+    assert isinstance(result.plain_image, Image.Image)
+    assert result.plain_image.size == (size, size)
+    assert result.plain_image.mode == "RGB"
+
+    assert isinstance(result.heatmap_layer, Image.Image)
+    assert result.heatmap_layer.size == (size, size)
+    assert result.heatmap_layer.mode == "RGBA"
+
 
 def test_mc_dropout_passes_count_is_configurable(small_pipeline_config, make_fake_split):
     summary = train_model(small_pipeline_config, max_epochs=1, device="cpu")

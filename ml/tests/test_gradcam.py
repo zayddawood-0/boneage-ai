@@ -5,7 +5,7 @@ import torch
 from PIL import Image
 
 from boneage.config import ModelConfig
-from boneage.gradcam import GradCAM, overlay_heatmap_on_image
+from boneage.gradcam import GradCAM, heatmap_layer_image, overlay_heatmap_on_image
 from boneage.model import BoneAgeModel
 
 
@@ -64,3 +64,33 @@ def test_overlay_heatmap_handles_flat_zero_cam():
     blended = overlay_heatmap_on_image(base_image, cam)
 
     assert blended.size == (32, 32)
+
+
+def test_heatmap_layer_image_is_rgba_sized_to_target():
+    cam = np.random.default_rng(1).random((8, 8)).astype(np.float32)
+
+    layer = heatmap_layer_image(cam, size=(48, 32))
+
+    assert layer.size == (48, 32)
+    assert layer.mode == "RGBA"
+
+
+def test_heatmap_layer_image_alpha_scales_with_attention():
+    # High-attention pixels should end up far more opaque than low-attention ones.
+    cam = np.zeros((4, 4), dtype=np.float32)
+    cam[0, 0] = 1.0  # one hotspot, everything else zero
+
+    layer = heatmap_layer_image(cam, size=(4, 4), max_alpha=200)
+    alpha = np.asarray(layer)[:, :, 3]
+
+    assert alpha[0, 0] >= 190  # near max_alpha at the hotspot
+    assert alpha[3, 3] <= 10  # near-transparent far from the hotspot
+
+
+def test_heatmap_layer_image_respects_max_alpha_cap():
+    cam = np.ones((4, 4), dtype=np.float32)
+
+    layer = heatmap_layer_image(cam, size=(4, 4), max_alpha=120)
+    alpha = np.asarray(layer)[:, :, 3]
+
+    assert alpha.max() <= 120

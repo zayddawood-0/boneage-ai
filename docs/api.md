@@ -104,15 +104,27 @@ Response (quality check passed):
 ```
 
 ### `POST /cases/{id}/predict`
-Runs model inference on the uploaded image.
+Runs model inference on the uploaded image (the real model if a trained checkpoint exists, otherwise a clearly-labelled mock — see [model.md](model.md)). Generates three images, each the same size:
 Response:
 ```json
 {
   "bone_age_months": 150,
   "uncertainty_months": 4,
-  "heatmap_url": "/cases/case_456/heatmap"
+  "heatmap_url": "/cases/case_456/heatmap",
+  "image_url": "/cases/case_456/image",
+  "heatmap_layer_url": "/cases/case_456/heatmap-layer",
+  "prediction_source": "real"
 }
 ```
+
+### `GET /cases/{id}/heatmap`
+The X-ray and heatmap pre-blended into one flat PNG — used by the PDF report (`GET /cases/{id}/report.pdf`).
+
+### `GET /cases/{id}/image`
+The plain preprocessed X-ray alone (PNG, no heatmap) — the real uploaded image, resized/oriented the same way the model saw it, same size as `heatmap-layer` below so the frontend can line the two up. Always the real X-ray, even when `prediction_source` is `"mock"` — only the heatmap is fabricated in that case, never the image.
+
+### `GET /cases/{id}/heatmap-layer`
+The Grad-CAM heatmap alone, as a transparent PNG (inferno colours, alpha proportional to attention) the same size as `/image` — lets the frontend composite the two independently (adjustable opacity, side-by-side view) instead of only having the pre-blended version. When `prediction_source` is `"mock"`, this is a visibly-marked fake layer (flat amber tint + "MOCK HEATMAP" text), never dressed up to look like a real attention map.
 
 ## Growth review agent
 

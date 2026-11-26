@@ -20,7 +20,18 @@ from ..pdf import build_case_report_pdf
 from ..quality import run_quality_checks
 from ..serializers import case_to_detail, case_to_list_item
 from ..settings_store import get_or_create_settings
-from ..storage import heatmap_path_for_case, heatmap_url_for_case, save_heatmap_image, save_upload_bytes
+from ..storage import (
+    display_image_path_for_case,
+    heatmap_layer_path_for_case,
+    heatmap_layer_url_for_case,
+    heatmap_path_for_case,
+    heatmap_url_for_case,
+    image_url_for_case,
+    save_display_image,
+    save_heatmap_image,
+    save_heatmap_layer_image,
+    save_upload_bytes,
+)
 
 router = APIRouter(prefix="/cases", tags=["cases"])
 
@@ -171,10 +182,14 @@ def predict_case(
     result = adapter.predict(case.image_path, sex_is_male)
 
     heatmap_path = save_heatmap_image(case.id, result.heatmap_image)
+    display_path = save_display_image(case.id, result.plain_image)
+    heatmap_layer_path = save_heatmap_layer_image(case.id, result.heatmap_layer)
 
     case.bone_age_months = result.bone_age_months
     case.uncertainty_months = result.uncertainty_months
     case.heatmap_path = str(heatmap_path)
+    case.display_image_path = str(display_path)
+    case.heatmap_layer_path = str(heatmap_layer_path)
     case.prediction_source = result.source
     db.commit()
 
@@ -182,6 +197,8 @@ def predict_case(
         bone_age_months=result.bone_age_months,
         uncertainty_months=result.uncertainty_months,
         heatmap_url=heatmap_url_for_case(case.id),
+        image_url=image_url_for_case(case.id),
+        heatmap_layer_url=heatmap_layer_url_for_case(case.id),
         prediction_source=result.source,
     )
 
@@ -192,10 +209,47 @@ def get_heatmap(
     db: Session = Depends(get_db),
     _user: models.User = Depends(require_roles(*_CLINICAL_WORKFLOW)),
 ) -> Response:
+    """Pre-blended X-ray + heatmap, flattened into one image — used by the
+    PDF report. The frontend's interactive viewer uses the two separate
+    layers below instead, so it can control opacity and show the plain
+    X-ray alone."""
     case = _get_case_or_404(db, case_id)
     path = heatmap_path_for_case(case.id)
     if not case.heatmap_path or not path.exists():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No heatmap for this case")
+    return Response(content=path.read_bytes(), media_type="image/png")
+
+
+@router.get("/{case_id}/image")
+def get_display_image(
+    case_id: int,
+    db: Session = Depends(get_db),
+    _user: models.User = Depends(require_roles(*_CLINICAL_WORKFLOW)),
+) -> Response:
+    """The plain preprocessed X-ray alone (no heatmap) — always the real
+    uploaded image, resized/oriented the same way the model saw it, even
+    when the prediction itself is mocked (see inference_adapter.py)."""
+    case = _get_case_or_404(db, case_id)
+    path = display_image_path_for_case(case.id)
+    if not case.display_image_path or not path.exists():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No image for this case")
+    return Response(content=path.read_bytes(), media_type="image/png")
+
+
+@router.get("/{case_id}/heatmap-layer")
+def get_heatmap_layer(
+    case_id: int,
+    db: Session = Depends(get_db),
+    _user: models.User = Depends(require_roles(*_CLINICAL_WORKFLOW)),
+) -> Response:
+    """The Grad-CAM heatmap alone, as a transparent PNG the same size as
+    /image, for the frontend to composite independently (opacity slider,
+    side-by-side view). Real attention when prediction_source is "real";
+    a clearly-labelled fake layer when it's "mock" — see inference_adapter.py."""
+    case = _get_case_or_404(db, case_id)
+    path = heatmap_layer_path_for_case(case.id)
+    if not case.heatmap_layer_path or not path.exists():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No heatmap layer for this case")
     return Response(content=path.read_bytes(), media_type="image/png")
 
 

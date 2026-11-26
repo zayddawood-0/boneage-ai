@@ -1,8 +1,8 @@
 """initial schema
 
-Revision ID: a74c16676bf1
+Revision ID: 5447714ea4e0
 Revises: 
-Create Date: 2026-11-26 23:42:25.167124
+Create Date: 2026-11-27 00:23:51.456420
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'a74c16676bf1'
+revision: str = '5447714ea4e0'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -72,6 +72,8 @@ def upgrade() -> None:
     sa.Column('bone_age_months', sa.Float(), nullable=True),
     sa.Column('uncertainty_months', sa.Float(), nullable=True),
     sa.Column('heatmap_path', sa.String(length=500), nullable=True),
+    sa.Column('display_image_path', sa.String(length=500), nullable=True),
+    sa.Column('heatmap_layer_path', sa.String(length=500), nullable=True),
     sa.Column('prediction_source', sa.String(length=10), nullable=True),
     sa.Column('chronological_age_months', sa.Integer(), nullable=True),
     sa.Column('gap_months', sa.Float(), nullable=True),

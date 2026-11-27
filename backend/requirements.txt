@@ -15,6 +15,7 @@ openai-agents==0.24.0
 PyYAML
 Pillow
 numpy
+matplotlib
 torch
 torchvision
 pandas

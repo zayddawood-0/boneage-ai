@@ -25,9 +25,7 @@ def get_model_performance(
     _user: models.User = Depends(require_roles(*_ALLOWED)),
 ) -> dict:
     settings = get_settings()
-    results_dir = settings.ml_checkpoint_path.parent.parent / "results"
-
-    val_results_path = results_dir / "val_results.json"
+    val_results_path = settings.ml_results_dir / "val_results.json"
     if val_results_path.exists():
         with val_results_path.open("r", encoding="utf-8") as f:
             real = json.load(f)

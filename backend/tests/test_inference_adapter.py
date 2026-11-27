@@ -1,15 +1,23 @@
-"""InferenceAdapter: mock fallback when no checkpoint exists, and the real
-path when one does (trains a tiny throwaway checkpoint via ml.boneage, the
-same way ml/tests/conftest.py does, so this never touches real RSNA data).
+"""InferenceAdapter: mock fallback when no exported ONNX model exists, and
+the real (ONNX Runtime) path when one does — trains a tiny throwaway
+checkpoint via ml.boneage and exports it, the same pattern ml/tests use, so
+this never touches real RSNA data or a real trained model.
 """
 from __future__ import annotations
 
-import io
+import sys
+from pathlib import Path
 
 import numpy as np
+import pandas as pd
 from PIL import Image
 
+from app import inference_adapter as inference_adapter_module
 from app.inference_adapter import MOCK_UNCERTAINTY_MONTHS, InferenceAdapter
+
+_ML_DIR = Path(__file__).resolve().parents[2] / "ml"
+if str(_ML_DIR) not in sys.path:
+    sys.path.insert(0, str(_ML_DIR))
 
 
 def _write_fake_image(path) -> None:
@@ -18,13 +26,11 @@ def _write_fake_image(path) -> None:
     Image.fromarray(arr, mode="L").save(path)
 
 
-def test_mock_predictor_used_when_no_checkpoint_exists(tmp_path):
+def test_mock_predictor_used_when_no_onnx_model_exists(tmp_path):
     image_path = tmp_path / "xray.png"
     _write_fake_image(image_path)
 
-    adapter = InferenceAdapter(
-        checkpoint_path=tmp_path / "does_not_exist.pt", ml_config_path=tmp_path / "unused.yaml"
-    )
+    adapter = InferenceAdapter(onnx_dir=tmp_path / "does_not_exist")
 
     assert adapter.is_real is False
 
@@ -39,7 +45,7 @@ def test_mock_predictor_used_when_no_checkpoint_exists(tmp_path):
 def test_mock_predictor_is_deterministic_for_same_image_and_sex(tmp_path):
     image_path = tmp_path / "xray.png"
     _write_fake_image(image_path)
-    adapter = InferenceAdapter(checkpoint_path=tmp_path / "missing.pt")
+    adapter = InferenceAdapter(onnx_dir=tmp_path / "missing")
 
     first = adapter.predict(image_path, sex_is_male=False)
     second = adapter.predict(image_path, sex_is_male=False)
@@ -47,17 +53,7 @@ def test_mock_predictor_is_deterministic_for_same_image_and_sex(tmp_path):
     assert first.bone_age_months == second.bone_age_months
 
 
-def test_real_predictor_used_once_a_checkpoint_exists(tmp_path):
-    # Train a tiny, throwaway checkpoint on a fake dataset — exactly the
-    # pattern ml/tests use — purely to exercise the "real" branch honestly,
-    # without needing the actual RSNA dataset or a pretrained-weights download.
-    import sys
-    from pathlib import Path
-
-    ml_dir = Path(__file__).resolve().parents[2] / "ml"
-    if str(ml_dir) not in sys.path:
-        sys.path.insert(0, str(ml_dir))
-
+def _train_tiny_onnx_model(tmp_path):
     from boneage.config import (
         AugmentationConfig,
         DataConfig,
@@ -70,19 +66,15 @@ def test_real_predictor_used_once_a_checkpoint_exists(tmp_path):
         SplitPaths,
         TrainingConfig,
     )
+    from boneage.onnx_export import export_to_onnx
     from boneage.training import train_model
 
-    column_aliases = {
-        "id": ["id"],
-        "boneage": ["boneage"],
-        "male": ["male"],
-    }
+    column_aliases = {"id": ["id"], "boneage": ["boneage"], "male": ["male"]}
 
     def _make_split(name: str, n: int):
         rng = np.random.default_rng(hash(name) % (2**32))
         images_dir = tmp_path / f"{name}_images"
         images_dir.mkdir()
-        import pandas as pd
 
         rows = []
         for i in range(n):
@@ -128,48 +120,17 @@ def test_real_predictor_used_once_a_checkpoint_exists(tmp_path):
             log_every_n_steps=1,
         ),
         evaluation=EvaluationConfig(output_dir=tmp_path / "results"),
-        inference=InferenceConfig(mc_dropout_passes=2),
+        inference=InferenceConfig(mc_dropout_passes=2, score_cam_top_k=4),
     )
 
     summary = train_model(pipeline_config, max_epochs=1, device="cpu")
+    return export_to_onnx(summary.checkpoint_path, pipeline_config, tmp_path / "onnx")
 
-    # Write a minimal ml-style config.yaml pointing at the same preprocessing
-    # settings, so InferenceAdapter can load it the same way it would for a
-    # real trained checkpoint.
-    import yaml
 
-    config_path = tmp_path / "config.yaml"
-    config_path.write_text(
-        yaml.safe_dump(
-            {
-                "seed": 0,
-                "data": {
-                    "rsna": {
-                        "train": {"images_dir": str(train_images), "labels_csv": str(train_csv)},
-                        "val": {"images_dir": str(val_images), "labels_csv": str(val_csv)},
-                        "test": {"images_dir": str(test_images), "labels_csv": str(test_csv)},
-                    },
-                    "column_aliases": column_aliases,
-                    "image_extension": ".png",
-                },
-                "preprocessing": {
-                    "image_size": 64,
-                    "normalize_mean": [0.485, 0.456, 0.406],
-                    "normalize_std": [0.229, 0.224, 0.225],
-                },
-                "augmentation": {
-                    "rotation_degrees": 5,
-                    "translate_frac": 0.02,
-                    "zoom_range": [0.98, 1.02],
-                    "brightness": 0.1,
-                    "contrast": 0.1,
-                },
-                "dataloader": {"batch_size": 2, "num_workers": 0},
-            }
-        )
-    )
+def test_real_predictor_used_once_an_onnx_model_exists(tmp_path):
+    onnx_paths = _train_tiny_onnx_model(tmp_path)
 
-    adapter = InferenceAdapter(checkpoint_path=summary.checkpoint_path, ml_config_path=config_path)
+    adapter = InferenceAdapter(onnx_dir=onnx_paths.metadata.parent)
     assert adapter.is_real is True
 
     image_path = tmp_path / "predict_me.png"
@@ -181,3 +142,24 @@ def test_real_predictor_used_once_a_checkpoint_exists(tmp_path):
     assert isinstance(result.bone_age_months, float)
     assert result.uncertainty_months >= 0.0
     assert result.heatmap_image.mode == "RGB"
+
+
+def test_download_only_attempted_once_per_cold_start(tmp_path, monkeypatch):
+    calls = {"n": 0}
+
+    def _fake_download(onnx_dir, download_url):
+        calls["n"] += 1
+
+    monkeypatch.setattr(inference_adapter_module, "_download_attempted", False)
+    monkeypatch.setattr(inference_adapter_module, "_try_download_onnx_dir", _fake_download)
+
+    onnx_dir = tmp_path / "missing_onnx"
+    adapter_one = InferenceAdapter(onnx_dir=onnx_dir)
+    adapter_one._onnx_download_url = "https://example.invalid/model.zip"
+    adapter_two = InferenceAdapter(onnx_dir=onnx_dir)
+    adapter_two._onnx_download_url = "https://example.invalid/model.zip"
+
+    assert adapter_one.is_real is False
+    assert adapter_two.is_real is False
+
+    assert calls["n"] == 1

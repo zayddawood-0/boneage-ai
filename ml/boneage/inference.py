@@ -7,27 +7,18 @@ reimplementing any of it (see CLAUDE.md#coding-conventions).
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
 import torch
-from PIL import Image
 
 from .config import PreprocessingConfig
 from .gradcam import GradCAM, heatmap_layer_image, overlay_heatmap_on_image
 from .model import BoneAgeModel, set_mc_dropout_mode
+from .prediction_result import PredictionResult
 from .transforms import ResizeWithPad, build_transforms, load_and_orient
 
-
-@dataclass
-class PredictionResult:
-    bone_age_months: float
-    uncertainty_months: float
-    mc_dropout_samples: list[float]
-    heatmap_image: Image.Image  # pre-blended X-ray + heatmap (PDF report)
-    plain_image: Image.Image  # the preprocessed X-ray alone (RGB), no heatmap
-    heatmap_layer: Image.Image  # the Grad-CAM heatmap alone (RGBA), same size as plain_image
+__all__ = ["PredictionResult", "load_checkpoint", "predict_single_image", "predict"]
 
 
 def load_checkpoint(

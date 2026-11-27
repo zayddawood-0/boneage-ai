@@ -96,6 +96,12 @@ class InferenceConfig:
     """See docs/model.md#uncertainty-approach — exact N is still [TBD]."""
 
     mc_dropout_passes: int = 20
+    # Score-CAM's top-k channel limit (ONNX inference path only — see
+    # docs/model.md#explainability and ml/boneage/score_cam.py). Exact
+    # Grad-CAM's channel count (every channel of the target layer, e.g. 512
+    # for resnet18's layer4) would mean one extra forward pass per channel;
+    # this caps it.
+    score_cam_top_k: int = 32
 
 
 @dataclass(frozen=True)
@@ -208,6 +214,9 @@ def load_config(config_path: str | Path) -> PipelineConfig:
     inference_cfg = InferenceConfig(
         mc_dropout_passes=inference_raw.get(
             "mc_dropout_passes", InferenceConfig.mc_dropout_passes
+        ),
+        score_cam_top_k=inference_raw.get(
+            "score_cam_top_k", InferenceConfig.score_cam_top_k
         ),
     )
 

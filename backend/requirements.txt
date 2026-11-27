@@ -12,10 +12,16 @@ python-multipart==0.0.32
 httpx==0.27.0
 pytest==8.2.2
 openai-agents==0.24.0
-PyYAML
 Pillow
 numpy
-matplotlib
-torch
-torchvision
-pandas
+# ONNX Runtime, not torch/torchvision — the backend's inference path
+# (app/inference_adapter.py -> ml/boneage/onnx_inference.py) is torch-free
+# on purpose, see docs/architecture.md#deployment-notes (Vercel's Python
+# functions have a 500 MB uncompressed size limit; torch alone is ~750 MB).
+onnxruntime==1.32.0
+# Postgres driver (production: Neon via the Vercel Marketplace) — SQLite
+# (local dev/tests) needs no driver package, see app/database.py.
+psycopg[binary]==3.2.13
+# Vercel Blob image storage (production) — see app/storage.py. Local dev
+# falls back to local disk automatically when BLOB_READ_WRITE_TOKEN is unset.
+vercel-blob==0.6.2

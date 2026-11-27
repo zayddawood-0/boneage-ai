@@ -11,6 +11,7 @@ from alembic import context
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.config import get_settings  # noqa: E402
+from app.database import normalize_database_url  # noqa: E402
 from app.models import Base  # noqa: E402
 
 # this is the Alembic Config object, which provides
@@ -25,7 +26,7 @@ if config.config_file_name is not None:
 # DATABASE_URL (env var / backend/.env) wins over anything in alembic.ini, so
 # `alembic upgrade head` and the FastAPI app always point at the same DB —
 # and tests can override it by setting DATABASE_URL before running migrations.
-config.set_main_option("sqlalchemy.url", get_settings().database_url)
+config.set_main_option("sqlalchemy.url", normalize_database_url(get_settings().database_url))
 
 target_metadata = Base.metadata
 

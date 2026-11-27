@@ -1,0 +1,15 @@
+# Dev/test-only additions on top of requirements.txt — NOT installed in
+# production (Vercel only ever runs `pip install -r requirements.txt`, see
+# vercel.json and docs/architecture.md#deployment-notes). CI's backend-tests
+# job installs this file instead of requirements.txt (see
+# .github/workflows/ci.yml) because backend/tests/test_inference_adapter.py
+# trains and ONNX-exports a tiny throwaway checkpoint (via ml.boneage) to
+# exercise the "real" prediction path honestly, the same pattern ml/tests
+# use — that needs torch, not just onnxruntime.
+-r requirements.txt
+torch==2.15.0
+torchvision==0.29.2
+pandas==2.3.3
+matplotlib==3.11.2
+onnx==1.23.2
+PyYAML==6.0.3

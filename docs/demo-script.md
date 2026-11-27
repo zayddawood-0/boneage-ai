@@ -22,7 +22,7 @@ Sign in as the demo doctor (`doctor@boneage.ai` / `demo-password`) before judges
 ## 3. A delayed flag (45s)
 
 - Open **BA-1042** (flagged, delayed — bone age behind chronological age).
-- Walk through the case report: the Grad-CAM heatmap overlay, the measurements panel (chronological age, predicted bone age, gap, model uncertainty), and the growth review agent's reasoning panel.
+- Walk through the case report: the attention heatmap overlay (Score-CAM — the deployed backend runs on ONNX Runtime, not PyTorch, see [model.md#explainability](model.md#explainability)), the measurements panel (chronological age, predicted bone age, gap, model uncertainty), and the growth review agent's reasoning panel.
 - Read the doctor note aloud — point out it names a direction and magnitude and lists "possible causes to check" (e.g. constitutional delay, hypothyroidism) **as possibilities, never a diagnosis** — and that the flag decision itself came from a deterministic rule (`compare_gap`), not an LLM guess. See [AGENTS.md](../AGENTS.md#the-growth-review-agent).
 
 ## 4. An advanced flag (30s)

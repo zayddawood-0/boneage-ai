@@ -7,13 +7,14 @@ this PDF only needs to carry the same facts.
 from __future__ import annotations
 
 import io
-from pathlib import Path
 
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.units import mm
+from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
 
 from . import models
+from .storage import read_case_image_bytes
 
 DISCLAIMER = (
     "BoneAge AI is decision support only. It does not diagnose any medical "
@@ -72,10 +73,12 @@ def build_case_report_pdf(case: models.Case, decided_by_name: str | None) -> byt
             c.drawString(margin, y, wrapped)
             y -= 13
 
-    heatmap_path = Path(case.heatmap_path) if case.heatmap_path else None
-    if heatmap_path and heatmap_path.exists():
+    heatmap_bytes = read_case_image_bytes(case.heatmap_path)
+    if heatmap_bytes:
         try:
-            c.drawImage(str(heatmap_path), margin, margin, width=60 * mm, height=60 * mm)
+            c.drawImage(
+                ImageReader(io.BytesIO(heatmap_bytes)), margin, margin, width=60 * mm, height=60 * mm
+            )
         except Exception:
             pass
 

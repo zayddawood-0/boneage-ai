@@ -2,9 +2,12 @@
 """Deletes X-ray images and heatmaps for cases past the configured retention
 period (docs/safety-and-ethics.md#privacy, Settings > Data & privacy).
 
-Not wired into a scheduler by default for the hackathon build — run it
-manually (e.g. before/after a demo), or point a host-level cron / Render Cron
-Job at it. Safe to run repeatedly: cases already cleaned are skipped.
+In production this runs automatically via Vercel Cron
+(`GET /internal/retention-cleanup`, see `app/routers/internal.py` and
+`vercel.json`'s `crons`) — this script is the manual/local-dev equivalent,
+useful for testing the cleanup logic against a local SQLite DB without
+waiting for the schedule. Safe to run repeatedly: cases already cleaned are
+skipped.
 
 Usage (from the repo root, after `alembic upgrade head` in backend/):
     python backend/scripts/cleanup_retention.py

@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import datetime as dt
 import io
+import tempfile
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from PIL import Image
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from starlette.concurrency import run_in_threadpool
 
 from .. import models, schemas
 from ..agent.review import run_growth_review
@@ -21,12 +23,10 @@ from ..quality import run_quality_checks
 from ..serializers import case_to_detail, case_to_list_item
 from ..settings_store import get_or_create_settings
 from ..storage import (
-    display_image_path_for_case,
-    heatmap_layer_path_for_case,
     heatmap_layer_url_for_case,
-    heatmap_path_for_case,
     heatmap_url_for_case,
     image_url_for_case,
+    read_case_image_bytes,
     save_display_image,
     save_heatmap_image,
     save_heatmap_layer_image,
@@ -153,14 +153,17 @@ async def upload_xray(
         result = run_quality_checks(image)
         quality_ok, issues = result.ok, result.issues
 
-    saved_path = save_upload_bytes(case.id, filename, data)
-    case.image_path = str(saved_path)
+    # Blob uploads go over the network (vercel-blob's sync API) — run it off
+    # the event loop rather than blocking this async endpoint (see
+    # storage.py; a no-op extra hop for the local-disk backend).
+    saved_handle = await run_in_threadpool(save_upload_bytes, case.id, filename, data)
+    case.image_path = saved_handle
     case.quality_ok = quality_ok
     case.quality_issues = issues
     db.commit()
 
     return schemas.UploadResponse(
-        quality_ok=quality_ok, issues=issues, image_id=saved_path.name if quality_ok else None
+        quality_ok=quality_ok, issues=issues, image_id=Path(saved_handle).name if quality_ok else None
     )
 
 
@@ -179,17 +182,35 @@ def predict_case(
 
     adapter = InferenceAdapter()
     sex_is_male = case.patient.sex == "male"
-    result = adapter.predict(case.image_path, sex_is_male)
 
-    heatmap_path = save_heatmap_image(case.id, result.heatmap_image)
-    display_path = save_display_image(case.id, result.plain_image)
-    heatmap_layer_path = save_heatmap_layer_image(case.id, result.heatmap_layer)
+    # The ml/ inference functions take a real file path on disk (see
+    # ml/boneage/onnx_inference.py / inference.py) — for the local storage
+    # backend `case.image_path` already is one, but for Vercel Blob it's a
+    # pathname, not a local file, so the stored bytes are fetched and
+    # written to a throwaway temp file either way (a harmless extra hop for
+    # the local-disk backend, see storage.py).
+    image_bytes = read_case_image_bytes(case.image_path)
+    if image_bytes is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded image not found")
+
+    suffix = Path(case.image_path).suffix or ".png"
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+        tmp.write(image_bytes)
+        tmp_path = Path(tmp.name)
+    try:
+        result = adapter.predict(tmp_path, sex_is_male)
+    finally:
+        tmp_path.unlink(missing_ok=True)
+
+    heatmap_handle = save_heatmap_image(case.id, result.heatmap_image)
+    display_handle = save_display_image(case.id, result.plain_image)
+    heatmap_layer_handle = save_heatmap_layer_image(case.id, result.heatmap_layer)
 
     case.bone_age_months = result.bone_age_months
     case.uncertainty_months = result.uncertainty_months
-    case.heatmap_path = str(heatmap_path)
-    case.display_image_path = str(display_path)
-    case.heatmap_layer_path = str(heatmap_layer_path)
+    case.heatmap_path = heatmap_handle
+    case.display_image_path = display_handle
+    case.heatmap_layer_path = heatmap_layer_handle
     case.prediction_source = result.source
     db.commit()
 
@@ -214,10 +235,10 @@ def get_heatmap(
     layers below instead, so it can control opacity and show the plain
     X-ray alone."""
     case = _get_case_or_404(db, case_id)
-    path = heatmap_path_for_case(case.id)
-    if not case.heatmap_path or not path.exists():
+    data = read_case_image_bytes(case.heatmap_path)
+    if data is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No heatmap for this case")
-    return Response(content=path.read_bytes(), media_type="image/png")
+    return Response(content=data, media_type="image/png")
 
 
 @router.get("/{case_id}/image")
@@ -230,10 +251,10 @@ def get_display_image(
     uploaded image, resized/oriented the same way the model saw it, even
     when the prediction itself is mocked (see inference_adapter.py)."""
     case = _get_case_or_404(db, case_id)
-    path = display_image_path_for_case(case.id)
-    if not case.display_image_path or not path.exists():
+    data = read_case_image_bytes(case.display_image_path)
+    if data is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No image for this case")
-    return Response(content=path.read_bytes(), media_type="image/png")
+    return Response(content=data, media_type="image/png")
 
 
 @router.get("/{case_id}/heatmap-layer")
@@ -247,10 +268,10 @@ def get_heatmap_layer(
     side-by-side view). Real attention when prediction_source is "real";
     a clearly-labelled fake layer when it's "mock" — see inference_adapter.py."""
     case = _get_case_or_404(db, case_id)
-    path = heatmap_layer_path_for_case(case.id)
-    if not case.heatmap_layer_path or not path.exists():
+    data = read_case_image_bytes(case.heatmap_layer_path)
+    if data is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No heatmap layer for this case")
-    return Response(content=path.read_bytes(), media_type="image/png")
+    return Response(content=data, media_type="image/png")
 
 
 @router.post("/{case_id}/agent-review", response_model=schemas.AgentReviewResponse)

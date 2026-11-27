@@ -124,7 +124,7 @@ The X-ray and heatmap pre-blended into one flat PNG — used by the PDF report (
 The plain preprocessed X-ray alone (PNG, no heatmap) — the real uploaded image, resized/oriented the same way the model saw it, same size as `heatmap-layer` below so the frontend can line the two up. Always the real X-ray, even when `prediction_source` is `"mock"` — only the heatmap is fabricated in that case, never the image.
 
 ### `GET /cases/{id}/heatmap-layer`
-The Grad-CAM heatmap alone, as a transparent PNG (inferno colours, alpha proportional to attention) the same size as `/image` — lets the frontend composite the two independently (adjustable opacity, side-by-side view) instead of only having the pre-blended version. When `prediction_source` is `"mock"`, this is a visibly-marked fake layer (flat amber tint + "MOCK HEATMAP" text), never dressed up to look like a real attention map.
+The attention heatmap alone (Grad-CAM when running the PyTorch model directly, Score-CAM on the deployed ONNX Runtime backend — see [model.md#explainability](model.md#explainability)), as a transparent PNG (inferno colours, alpha proportional to attention) the same size as `/image` — lets the frontend composite the two independently (adjustable opacity, side-by-side view) instead of only having the pre-blended version. When `prediction_source` is `"mock"`, this is a visibly-marked fake layer (flat amber tint + "MOCK HEATMAP" text), never dressed up to look like a real attention map.
 
 ## Growth review agent
 
@@ -198,3 +198,11 @@ Response:
   "model_card": { "version": "[TBD]" }
 }
 ```
+
+## Internal
+
+Not part of the doctor/radiographer/admin permission matrix — a system endpoint called by Vercel Cron, guarded by a shared secret instead of a user token (see [architecture.md#deployment-notes](architecture.md#deployment-notes)).
+
+### `GET /internal/retention-cleanup`
+Header: `Authorization: Bearer <CRON_SECRET>` (anything else, including no header, is `401`).
+Response: `{ "ok": true, "cases_cleaned": <int> }`

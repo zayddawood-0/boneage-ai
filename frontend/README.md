@@ -25,7 +25,7 @@ npm run lint       # oxlint
 
 ## Configuration
 
-- `VITE_API_BASE_URL` — base URL the API client (`src/api/client.ts`) talks to. Unset locally (defaults to `/api`, handled by the Vite proxy above). In production (Vercel), set it as a Production environment variable on the Vercel project so it's baked in at build time — see [README.md#deployment-setup-vercel--render--github-actions](../README.md#deployment-setup-vercel--render--github-actions).
+- `VITE_API_BASE_URL` — base URL the API client (`src/api/client.ts`) talks to. Unset locally (defaults to `/api`, handled by the Vite proxy above). In production (Vercel), set it as a Production environment variable on the Vercel project so it's baked in at build time — see [README.md#deployment-setup-vercel--github-actions](../README.md#deployment-setup-vercel--github-actions).
 - `vercel.json` — SPA rewrite so client-side routes (`react-router-dom`'s `BrowserRouter`) survive a deep link or page refresh on Vercel.
 
 ## Tests

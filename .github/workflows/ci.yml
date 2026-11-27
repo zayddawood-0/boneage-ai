@@ -50,13 +50,19 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
-          cache-dependency-path: backend/requirements.txt
+          cache-dependency-path: backend/requirements-dev.txt
 
       - name: Install CPU-only PyTorch
+        # backend/requirements.txt itself is torch-free (ONNX Runtime only,
+        # see app/inference_adapter.py / ml/boneage/onnx_inference.py and
+        # docs/architecture.md#deployment-notes) — but the test suite trains
+        # and ONNX-exports a tiny throwaway checkpoint via ml.boneage to
+        # exercise the real prediction path honestly (test_inference_adapter.py),
+        # which does need torch. See backend/requirements-dev.txt.
         run: pip install torch==2.15.0 torchvision==0.29.2 --index-url ${{ env.TORCH_INDEX_URL }}
 
-      - name: Install backend dependencies
-        run: pip install -r backend/requirements.txt
+      - name: Install backend dependencies (incl. dev/test-only extras)
+        run: pip install -r backend/requirements-dev.txt
 
       - name: Run backend tests
         # Each test run gets its own temp SQLite DB, migrated with the real

@@ -92,3 +92,6 @@ inference:
   # Number of stochastic forward passes for MC-dropout uncertainty —
   # [TBD] per docs/model.md#uncertainty-approach.
   mc_dropout_passes: 20
+  # Score-CAM's top-k channel limit, ONNX inference path only — see
+  # docs/model.md#explainability and ml/boneage/score_cam.py.
+  score_cam_top_k: 32

@@ -98,14 +98,35 @@ Every **Frontend** task below means translating that screen's file in [`design/`
 
 ## Phase 5 — CI/CD, deployment, and demo readiness
 
+*Superseded by Phase 6: the backend no longer deploys to Render — see below. CI, the demo script, and the retention-cleanup logic itself are unchanged.*
+
 - [x] CI workflow (`.github/workflows/ci.yml`): ml tests, backend tests, frontend tests, and the frontend build on every push/PR — CPU-only, `pretrained=False` where relevant, pip/npm caching, no dataset or checkpoint downloads needed
-- [x] Deploy workflow (`.github/workflows/deploy.yml`): fires after CI passes on `main` (`workflow_run`); deploys the frontend to Vercel via the Vercel CLI (`VERCEL_TOKEN`/`VERCEL_ORG_ID`/`VERCEL_PROJECT_ID`) and triggers a Render deploy via `RENDER_DEPLOY_HOOK_URL` — see the setup checklist in [README.md](../README.md#deployment-setup-vercel--render--github-actions)
+- [x] ~~Deploy workflow deploys the frontend to Vercel and triggers a Render deploy~~ — see Phase 6, both the frontend and backend now deploy to Vercel
 - [x] `frontend/vercel.json` SPA rewrite so client-side routes (`react-router-dom`'s `BrowserRouter`) survive a deep link/refresh
-- [x] `render.yaml`: start command runs the checkpoint download step, Alembic migrations, and the demo seed on every deploy; env vars for the JWT secret (generated), optional `OPENAI_API_KEY`, and `CORS_ORIGIN` (set to the Vercel URL)
+- [x] ~~`render.yaml`~~ — removed in Phase 6
 - [x] CORS middleware (`backend/app/main.py`, `CORS_ORIGIN` setting) — not needed for local dev (Vite proxy), required once frontend/backend are on separate origins
-- [x] Startup checkpoint download step (`backend/scripts/download_checkpoint.py`) — best-effort fetch from `CHECKPOINT_DOWNLOAD_URL`; never fails the deploy, falls back to the mock predictor (the "Demo model" chip) automatically if unset or the download fails
-- [x] Data-retention cleanup task (`backend/app/retention.py`, `backend/scripts/cleanup_retention.py`) — deletes X-ray images/heatmaps for cases past the configured `retention_days`, keeps the case record itself; not wired into an automatic scheduler for the hackathon build, run manually or via an external cron
+- [x] ~~Startup checkpoint download step (`backend/scripts/download_checkpoint.py`)~~ — replaced in Phase 6 by a lazy, per-cold-start download inside `app/inference_adapter.py` (Vercel Functions have no pre-start hook to run a separate script from)
+- [x] Data-retention cleanup task (`backend/app/retention.py`) — deletes X-ray images/heatmaps for cases past the configured `retention_days`, keeps the case record itself; in Phase 6 this runs automatically via Vercel Cron (`backend/scripts/cleanup_retention.py` is the manual/local-dev equivalent)
 - [x] `docs/demo-script.md` — 3–4 minute judge walkthrough using the seeded demo cases
-- [x] README.md setup checklist for creating the Vercel/Render projects, getting each token/hook, and adding the GitHub secrets
-- [ ] Actually create the Vercel and Render projects and run through the checklist end-to-end on the real services (the workflows/config are written and validated locally; nobody has clicked through Vercel/Render yet)
+- [x] ~~README.md setup checklist for creating the Vercel/Render projects~~ — superseded by Phase 6's all-Vercel checklist
 - [ ] Rehearse the demo script live against the deployed (not just local) environment
+
+## Phase 6 — Backend on Vercel: ONNX inference, Postgres, Blob storage
+
+- [x] **Measured the backend's deployed dependency size** before changing anything: `torch`+`torchvision` alone are ~750 MB uncompressed (actual Linux wheels extracted and measured), total ~1023 MB — well over Vercel's 500 MB Python Function limit
+- [x] ONNX export (`ml/boneage/onnx_export.py`, `ml/export_onnx.py`): a trained checkpoint → three ONNX graphs (backbone+activations, and the two head layers either side of each Dropout — see the module's docstring for why three, not one) + `metadata.json`
+- [x] Torch-free ONNX inference (`ml/boneage/onnx_inference.py`, `ml/boneage/numpy_transforms.py`): MC-dropout uncertainty reproduced exactly via numpy-side Bernoulli masking between the two head graphs (not via ONNX Runtime's own Dropout-training-mode behaviour, which can't cleanly separate "dropout active" from "BatchNorm frozen" the way `set_mc_dropout_mode` does); verified torch-free with a subprocess import check
+- [x] Score-CAM (`ml/boneage/score_cam.py`) — gradient-free Grad-CAM stand-in for the ONNX path (no backprop in ONNX Runtime); regression-appropriate channel weighting (`softmax(-|f(masked) - f(full)|)`), top-k channel limit (`InferenceConfig.score_cam_top_k`), verified numerically against the real model and checked that it dominates toward the channel that reproduces the full prediction
+- [x] Shared `ml/boneage/colormap.py` (hardcoded inferno LUT, checked against matplotlib) replaces the old per-call matplotlib colourisation in `gradcam.py` — keeps Grad-CAM and Score-CAM pixel-identically coloured, and removes matplotlib from the backend's path entirely
+- [x] `ml/compare_heatmaps.py` — runs PyTorch Grad-CAM and ONNX Score-CAM side by side on sample images (or auto-generated synthetic ones) for a visual sanity check before trusting Score-CAM in a demo
+- [x] `backend/app/inference_adapter.py` rewritten: real path calls `boneage.onnx_inference`, not `boneage.inference`; mock path switched to the torch-free `boneage.numpy_transforms`; lazy, once-per-cold-start model download from `ONNX_DOWNLOAD_URL`
+- [x] `backend/requirements.txt` is now torch-free (ONNX Runtime, psycopg, vercel-blob added); `backend/requirements-dev.txt` adds torch/torchvision/pandas/matplotlib/onnx back for the test suite only (never installed in production)
+- [x] Postgres support (`app/database.py`'s `normalize_database_url`, same normalisation applied in `migrations/env.py`) — SQLite stays the local dev/test default; Neon (Vercel Marketplace) in production, same Alembic chain
+- [x] Vercel Blob image storage (`app/storage.py`) — local disk (default) or Blob, selected automatically by `BLOB_READ_WRITE_TOKEN`; `app/pdf.py` and the case image endpoints updated to read bytes through the same abstraction instead of assuming a local filesystem path
+- [x] Retention cleanup as a Vercel Cron job (`backend/vercel.json`'s `crons`, `app/routers/internal.py`'s `GET /internal/retention-cleanup`, guarded by `CRON_SECRET`) instead of a background task
+- [x] `backend/vercel.json` + `backend/.python-version` (zero-config Python detection of `app/main.py`'s `app`); `render.yaml` removed
+- [x] `.github/workflows/deploy.yml`: migration job (`alembic upgrade head` + demo reseed against production Postgres, run from the Actions runner) + two Vercel deploy jobs (frontend, backend) — the Render deploy-hook job removed
+- [x] Docs updated: `docs/model.md#explainability` (Score-CAM formula, written up in full), `docs/safety-and-ethics.md`, `docs/api.md`, `docs/requirements.md`, `docs/design.md`, `docs/testing.md`, `docs/demo-script.md`, `README.md`, `CLAUDE.md`, `AGENTS.md`, `backend/README.md`, `ml/README.md`
+- [ ] **Frontend's Model performance model card** — intentionally *not* updated to name Score-CAM: the screen is pixel-locked to `design/Model.html`, which has no row for an explainability method (only a generic `[Backbone, e.g. CNN name]` Architecture placeholder and a fixed 4-bullet Limitations list) — adding one would mean amending the locked design file first. Flagged for a decision, not silently skipped or silently done.
+- [ ] Actually create the two Vercel projects (frontend + backend), the Neon Postgres integration, and the Blob store, and run through the README setup checklist end-to-end on the real services (the workflows/config are written and verified locally — including an empirical check of Vercel's documented Root-Directory file-inclusion and Python-entrypoint-detection behaviour against their current docs — but nobody has clicked through Vercel/Neon yet)
+- [ ] Rehearse the demo script live against the deployed (not just local) environment, once deployed

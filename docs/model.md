@@ -9,7 +9,7 @@ No results in this document are real yet — every metric is marked `[TBD]` unti
 - **Backbone:** a pretrained CNN (e.g. EfficientNet or ResNet — exact choice `[TBD]`), fine-tuned on RSNA.
 - **Inputs:** the left-hand X-ray image, plus the patient's **sex** concatenated into the regression head (sex is a known strong covariate for bone age).
 - **Output head:** regression output for bone age in months, plus an uncertainty estimate produced via **MC dropout** (multiple stochastic forward passes at inference time, with the resulting prediction spread reported as the uncertainty estimate) — chosen over a variance head or ensemble because it requires no change to the training loss and can be retrofitted onto the pretrained backbone.
-- **Explainability:** Grad-CAM (or a similar CAM-based method) over the backbone's final convolutional layers to produce the attention heatmap shown in the case report, rendered with the inferno-style scale defined in [design.md](design.md#design-tokens).
+- **Explainability:** Grad-CAM over the backbone's final convolutional layer when running on PyTorch (training/evaluation, `ml/boneage/gradcam.py`); Score-CAM — a gradient-free stand-in, see below — when running via ONNX Runtime in the deployed backend (`ml/boneage/score_cam.py`, `ml/boneage/onnx_inference.py`). Either way the heatmap is rendered with the same inferno-style scale defined in [design.md](design.md#design-tokens).
 
 ## Inputs / outputs (summary)
 
@@ -42,12 +42,26 @@ Chronological age is **not** a model input or output — it's computed separatel
 
 ## Explainability
 
-- Grad-CAM heatmaps are generated per prediction and shown overlaid on the X-ray in the case report, using the inferno-style scale (`#3B0F70 → #B73779 → #FC8961 → #FCFDBF`).
-- Heatmaps are intended to show *where* the model focused, as a sanity-check aid for the doctor — not as proof of correctness. This limitation should be stated in the model card and in the Model performance screen's limitations section.
+Heatmaps are generated per prediction and shown overlaid on the X-ray in the case report, using the inferno-style scale (`#3B0F70 → #B73779 → #FC8961 → #FCFDBF`). They're intended to show *where* the model focused, as a sanity-check aid for the doctor — not as proof of correctness. This limitation is stated in the model card and in the Model performance screen's limitations section, regardless of which method produced the heatmap below.
+
+**Two methods, same contract.** The backend deploys on ONNX Runtime, not PyTorch, to stay under Vercel's Python function size limit (see [architecture.md](architecture.md#deployment-notes) — torch/torchvision alone are ~750 MB uncompressed, well past the 500 MB cap). ONNX Runtime gives forward passes only, no backpropagation, so Grad-CAM (which needs the gradient of the prediction with respect to the backbone's last conv layer) isn't available there. The two paths:
+
+- **Grad-CAM** (`ml/boneage/gradcam.py`) — used when running the real PyTorch model directly (training, evaluation, and `ml/compare_heatmaps.py`'s sanity check below). Weights each channel of the target conv layer by the mean gradient of the prediction with respect to that channel, combines, ReLUs, and normalises.
+- **Score-CAM** (`ml/boneage/score_cam.py`) — used by the deployed, ONNX-based backend (`ml/boneage/onnx_inference.py`). Gradient-free: it reads the same target layer's *activations* (exposed as a second output of the exported backbone graph, see `ml/boneage/onnx_export.py`) instead of their gradient, and estimates each channel's importance by actually masking the input with it and re-running the (deterministic, dropout-off) model.
+
+  Classic Score-CAM weights each channel by how much masking with it *increases* a classification logit — that has no equivalent for a regression output like bone age (there's no single "more positive is better" direction). Instead, each of the top-`k` most active channels is weighted by how closely masking the image down to just that channel's region reproduces the **full image's** prediction:
+
+  ```
+  weight_i = softmax_i( -| f(masked_i) - f(full) | )
+  ```
+
+  where `f(full)` is the model's prediction on the whole image and `f(masked_i)` is its prediction after multiplying the image by channel `i`'s (upsampled, normalised) activation map. A channel whose region alone reproduces the full prediction gets the largest weight; a channel that barely matters gets driven toward zero by the softmax. The weighted channels are summed, ReLU'd, and renormalised — mirroring Grad-CAM's own combination step. Only the `top_k` most active channels are evaluated (`InferenceConfig.score_cam_top_k`, default 32, configurable in `ml/config/config.yaml`) rather than every channel of the target layer (512 for `resnet18`'s `layer4`), since each one costs a full extra forward pass.
+- **Checking the two agree:** `ml/compare_heatmaps.py` runs both methods on the same sample images and saves them side by side, specifically so a real trained checkpoint's Grad-CAM and Score-CAM outputs can be eyeballed against each other before relying on Score-CAM in a demo — see [ml/README.md](../ml/README.md).
+- **Uncertainty (MC dropout) on the ONNX path** doesn't rely on ONNX Runtime's own Dropout-in-training-mode behaviour (which can't cleanly reproduce `set_mc_dropout_mode`'s "dropout stochastic, BatchNorm frozen" split via PyTorch's exporter — see `ml/boneage/onnx_export.py`'s module docstring for the empirical reason). Instead the exported model is split into three graphs (backbone+activations, and the two head layers either side of each Dropout), and the actual Bernoulli dropout masks are applied in numpy between calling them — the same "inverted dropout" scaling `torch.nn.Dropout` uses, so it's numerically equivalent to the real model, not an approximation.
 
 ## Uncertainty approach
 
-- **Confirmed: MC dropout.** Multiple stochastic forward passes at inference time (dropout left active), with the spread of predictions reported as the uncertainty estimate. This must run fast enough to stay inline with inference for the demo (see [architecture.md](architecture.md#deployment-notes-hackathon-demo)); number of passes `[TBD]`.
+- **Confirmed: MC dropout.** Multiple stochastic forward passes at inference time (dropout left active), with the spread of predictions reported as the uncertainty estimate. This must run fast enough to stay inline with inference for the demo (see [architecture.md](architecture.md#deployment-notes)); number of passes `[TBD]`. On the deployed (ONNX) backend, the backbone itself (no dropout) runs once and only the two tiny head layers are rerun per stochastic pass, with the dropout masks applied in numpy — see [Explainability](#explainability) above and `ml/boneage/onnx_export.py`.
 - The uncertainty estimate feeds directly into the growth review agent's decision: predictions with uncertainty above a configured threshold are flagged for review regardless of the point-estimate gap (see [AGENTS.md](../AGENTS.md#decision-rules)).
 
 ## Model card template

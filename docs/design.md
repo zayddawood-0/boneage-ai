@@ -80,7 +80,7 @@ For each screen: components, and states it must handle (empty, loading, error, f
 ### 3. New analysis (3-step flow)
 - **Step 1 — Patient details:** name/ID, sex, date of birth, X-ray date (chronological age computed and shown live), optional height/weight, referral reason.
 - **Step 2 — Upload:** drag-and-drop or file picker for PNG/JPG/DICOM; runs image quality checks (hand detected, orientation, resolution, burned-in details removed) and surfaces failures before proceeding.
-- **Step 3 — Result:** large X-ray + Grad-CAM heatmap, predicted bone age + uncertainty, growth review agent panel with flag status and note, action to send to review queue or auto-clear.
+- **Step 3 — Result:** large X-ray + attention heatmap (Grad-CAM/Score-CAM, see [model.md#explainability](model.md#explainability)), predicted bone age + uncertainty, growth review agent panel with flag status and note, action to send to review queue or auto-clear.
 - **States:** empty (step not started), loading (quality check running / inference running), error (quality check failed, upload failed, inference failed), flagged result, normal/cleared result.
 - **Access:** doctor and radiographer.
 

@@ -6,7 +6,7 @@ Part of the [BoneAge AI](../README.md) documentation set. See also: [requirement
 
 - Evaluate on the RSNA test split: MAE overall, by sex, by age band, % within ±12 months (see [model.md](model.md#evaluation-metrics)). All figures `[TBD]` until training completes.
 - Evaluate generalisation and gap-flagging behaviour on DHA and/or RHPE, since RSNA lacks chronological age (see [data.md](data.md#handling-chronological-age-rsna-gap)).
-- Sanity-check Grad-CAM heatmaps visually on a sample of cases — attention should plausibly fall on hand/wrist growth-plate regions, not background artefacts.
+- Sanity-check attention heatmaps visually on a sample of cases — attention should plausibly fall on hand/wrist growth-plate regions, not background artefacts. `ml/compare_heatmaps.py` runs Grad-CAM (PyTorch) and Score-CAM (ONNX, the deployed backend's method — see [model.md#explainability](model.md#explainability)) side by side on the same images specifically for this check, before trusting Score-CAM in a demo.
 - Check uncertainty calibration qualitatively (do high-uncertainty cases correspond to genuinely harder images, e.g. poor quality or borderline age ranges) — exact calibration method `[TBD]`.
 
 ## Agent rule unit tests

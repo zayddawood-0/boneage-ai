@@ -10,12 +10,12 @@ Guidance for coding agents (Codex, Cursor, Copilot Workspace, etc.) working in t
 
 ## Current state
 
-`ml/`, `backend/`, and `frontend/` all have real code now, plus CI/CD (`.github/workflows/`) and deployment config (`render.yaml`, `frontend/vercel.json`).
+`ml/`, `backend/`, and `frontend/` all have real code now, plus CI/CD (`.github/workflows/`) and deployment config (`backend/vercel.json`, `frontend/vercel.json` — both deploy to Vercel, no Render).
 
-- **`ml/`** — the RSNA data pipeline and the model itself (architecture, training loop, evaluation, Grad-CAM, MC-dropout inference, a Kaggle training notebook), with unit tests (see [ml/README.md](ml/README.md)). **No real training has been run yet** — every metric in [docs/model.md](docs/model.md) stays `[TBD]` until a real checkpoint is trained and evaluated and the numbers copied in by hand; never fabricate them.
-- **`backend/`** — a working FastAPI app: auth + role-based access control, patients, cases, upload + image quality checks, prediction (real model if a checkpoint exists, otherwise a clearly-labelled mock), the growth review agent (see below), doctor decisions, PDF export, settings, a data-retention cleanup task, and a demo-data seed script. SQLite via Alembic migrations (see [backend/README.md](backend/README.md)). The SD-based reference table is an intentionally empty `[TBD — to verify]` template.
+- **`ml/`** — the RSNA data pipeline and the model itself (architecture, training loop, evaluation, Grad-CAM, MC-dropout inference, ONNX export, a Kaggle training notebook), with unit tests (see [ml/README.md](ml/README.md)). **No real training has been run yet** — every metric in [docs/model.md](docs/model.md) stays `[TBD]` until a real checkpoint is trained and evaluated and the numbers copied in by hand; never fabricate them.
+- **`backend/`** — a working FastAPI app: auth + role-based access control, patients, cases, upload + image quality checks, prediction (real, via ONNX Runtime, if an exported model exists — see [docs/model.md#explainability](docs/model.md#explainability) for why ONNX, not PyTorch — otherwise a clearly-labelled mock), the growth review agent (see below), doctor decisions, PDF export, settings, a data-retention cleanup task (Vercel Cron in production), and a demo-data seed script. SQLite (local dev/tests) or Postgres (Neon, production) via the same Alembic migrations; local disk or Vercel Blob for images (see [backend/README.md](backend/README.md)). The SD-based reference table is an intentionally empty `[TBD — to verify]` template.
 - **`frontend/`** — a React + TypeScript + Vite + Tailwind app translating every `design/` screen pixel-for-pixel (see [frontend/README.md](frontend/README.md)).
-- **CI/CD** — GitHub Actions run all three test suites + the frontend build on every push/PR (`.github/workflows/ci.yml`); a deploy workflow ships the frontend to Vercel and triggers a Render deploy after CI passes on `main` (`.github/workflows/deploy.yml`). See [README.md#deployment-setup-vercel--render--github-actions](README.md#deployment-setup-vercel--render--github-actions).
+- **CI/CD** — GitHub Actions run all three test suites + the frontend build on every push/PR (`.github/workflows/ci.yml`); a deploy workflow applies DB migrations and deploys both the frontend and backend to Vercel (two separate projects) after CI passes on `main` (`.github/workflows/deploy.yml`). See [README.md#deployment-setup-vercel--github-actions](README.md#deployment-setup-vercel--github-actions).
 
 ## Repo layout (planned)
 
@@ -38,11 +38,18 @@ python ml/evaluate.py --config ml/config/config.yaml --checkpoint ml/checkpoints
 trains/evaluates against the real dataset (config.yaml must point at it first — see [docs/data.md](docs/data.md)). For GPU training, see `ml/notebooks/train_kaggle.ipynb`.
 
 ```bash
+python ml/export_onnx.py --config ml/config/config.yaml --checkpoint ml/checkpoints/best_model.pt --out-dir ml/checkpoints/onnx
+python ml/compare_heatmaps.py --config ml/config/config.yaml --checkpoint ml/checkpoints/best_model.pt --onnx-dir ml/checkpoints/onnx --out-dir ml/results/heatmap_comparison
+```
+
+exports a trained checkpoint to the three ONNX graphs the deployed backend actually runs (see [docs/model.md#explainability](docs/model.md#explainability)), then sanity-checks Grad-CAM against Score-CAM on sample images.
+
+```bash
 pip install -r backend/requirements.txt
 cd backend && alembic upgrade head && uvicorn app.main:app --reload
 ```
 
-runs the backend API (Swagger UI at `/docs`); `pytest` from `backend/` runs its tests (own temp SQLite DB, migrated with Alembic, no network/LLM calls needed). See [backend/README.md](backend/README.md) for the seed script and full details.
+runs the backend API (Swagger UI at `/docs`; schema is SQLite by default, Postgres if `DATABASE_URL` is set). `pip install -r backend/requirements-dev.txt` (not `requirements.txt` — see that file's own comment) + `pytest` from `backend/` runs its tests (own temp SQLite DB, migrated with Alembic, no network/LLM calls needed; trains + ONNX-exports a tiny throwaway checkpoint, hence the extra torch/onnx dev dependencies). See [backend/README.md](backend/README.md) for the seed script and full details.
 
 ```bash
 cd frontend && npm install && npm run dev    # dev server, proxies /api to the backend
@@ -50,7 +57,7 @@ npm run test                                 # vitest, from frontend/
 npm run build                                # tsc -b && vite build
 ```
 
-See [frontend/README.md](frontend/README.md). CI (`.github/workflows/ci.yml`) runs all three test suites + the frontend build on every push/PR; deploys (`.github/workflows/deploy.yml`) go to Vercel + Render after CI passes on `main` — see [README.md#deployment-setup-vercel--render--github-actions](README.md#deployment-setup-vercel--render--github-actions) for the one-time setup checklist.
+See [frontend/README.md](frontend/README.md). CI (`.github/workflows/ci.yml`) runs all three test suites + the frontend build on every push/PR; deploys (`.github/workflows/deploy.yml`) apply DB migrations then ship both the frontend and backend to Vercel (two separate projects) after CI passes on `main` — see [README.md#deployment-setup-vercel--github-actions](README.md#deployment-setup-vercel--github-actions) for the one-time setup checklist.
 
 ## Frontend design (locked)
 
@@ -62,7 +69,8 @@ The approved UI design for every screen lives in `design/` (see `design/README.m
 
 Same as [CLAUDE.md](CLAUDE.md#coding-conventions):
 
-- Model: Python/PyTorch, pretrained CNN backbone, sex concatenated into the regression head (`ml/boneage/model.py`), Grad-CAM for heatmaps (`ml/boneage/gradcam.py`), uncertainty via MC dropout (`ml/boneage/inference.py`). Stack confirmed.
+- Model (training): Python/PyTorch, pretrained CNN backbone, sex concatenated into the regression head (`ml/boneage/model.py`), Grad-CAM for heatmaps (`ml/boneage/gradcam.py`), uncertainty via MC dropout (`ml/boneage/inference.py`). Stack confirmed.
+- Model (deployed inference): ONNX Runtime, not PyTorch — `ml/export_onnx.py` / `ml/boneage/onnx_export.py` export a trained checkpoint to three ONNX graphs; the backend calls `boneage.onnx_inference.predict_single_image_onnx`. Never let backend code import anything that pulls `torch`/`torchvision` in (Vercel's Python Functions cap at 500 MB uncompressed — see [docs/architecture.md#deployment-notes](docs/architecture.md#deployment-notes)). Score-CAM (`ml/boneage/score_cam.py`) is the gradient-free Grad-CAM stand-in used there — see [docs/model.md#explainability](docs/model.md#explainability).
 - Backend: FastAPI (`backend/app/`). The growth review agent (`backend/app/agent/`) is built on the **OpenAI Agents SDK**. Its flag decision (`tools.py`) must be deterministic and testable; the LLM only writes the explanatory note (`note_writer.py`), given only structured numbers/labels. Role checks go through `backend/app/deps.py`'s `require_roles(...)` on every endpoint.
 - Frontend: React + TypeScript + Vite + Tailwind, built by translating each `design/` file pixel-for-pixel (see [Frontend design (locked)](#frontend-design-locked) above), theming via CSS variables, status always labelled with text (never colour alone).
 - No fabricated medical facts, thresholds, or accuracy numbers — use `[TBD]`.

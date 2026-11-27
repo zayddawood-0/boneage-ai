@@ -6,7 +6,7 @@ Part of the [BoneAge AI](../README.md) documentation set. See also: [requirement
 
 **BoneAge AI is decision support only. It is not a diagnostic device and does not diagnose any medical condition.**
 
-- The CNN produces a bone age *estimate* with an uncertainty value — it is a measurement aid, not a clinical conclusion.
+- The CNN produces a bone age *estimate* with an uncertainty value — it is a measurement aid, not a clinical conclusion. The attention heatmap shown alongside it (Grad-CAM when running the PyTorch model directly, Score-CAM — a gradient-free stand-in used by the deployed ONNX Runtime backend, see [model.md#explainability](model.md#explainability)) is a sanity-check aid showing *where* the model focused, never proof that the prediction is correct.
 - The growth review agent's flag is an *alert that a case may warrant attention* — it never states or implies a diagnosis. Its note is phrased as "possible causes the doctor may consider," never as a finding of fact.
 - The doctor's recorded decision (confirm flag / within expected range / model looks wrong — manual re-read) is the final word on every case. The system does not act on its own output.
 - This disclaimer must be visible in the product (e.g. on the case report and/or persistently in the UI — exact placement `[TBD]`, but it must not be buried) and repeated in any demo or presentation of the project.

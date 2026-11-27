@@ -2,31 +2,28 @@
 than the configured retention period (docs/safety-and-ethics.md#privacy,
 `GrowthReviewSettings.retention_days`, admin-configurable via PUT /settings).
 
-Scope is deliberately narrow: only the image files on disk, and the DB path
-columns pointing at them, are removed — the case record itself (prediction
-numbers, flag status, doctor decision) is kept so review history and model
-performance stats stay intact. After cleanup, `GET /cases/{id}/image` and
-friends 404 (see backend/app/routers/cases.py), same as a case that never had
-an image.
+Scope is deliberately narrow: only the stored image files (local disk or
+Vercel Blob, see storage.py), and the DB path columns pointing at them, are
+removed — the case record itself (prediction numbers, flag status, doctor
+decision) is kept so review history and model performance stats stay intact.
+After cleanup, `GET /cases/{id}/image` and friends 404 (see
+backend/app/routers/cases.py), same as a case that never had an image.
+
+Run on a schedule via Vercel Cron (see `routers/internal.py`'s
+`GET /internal/retention-cleanup`, called from `vercel.json`'s `crons`) —
+not a separate background process, since Vercel's Python functions have no
+long-running process to attach one to.
 """
 from __future__ import annotations
 
 import datetime as dt
-from pathlib import Path
 
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from . import models
 from .settings_store import get_or_create_settings
-
-
-def _unlink_if_exists(path_str: str | None) -> None:
-    if not path_str:
-        return
-    path = Path(path_str)
-    if path.exists():
-        path.unlink()
+from .storage import delete_case_image
 
 
 def cleanup_expired_images(db: Session, *, now: dt.datetime | None = None) -> int:
@@ -52,10 +49,10 @@ def cleanup_expired_images(db: Session, *, now: dt.datetime | None = None) -> in
     )
 
     for case in expired_cases:
-        _unlink_if_exists(case.image_path)
-        _unlink_if_exists(case.display_image_path)
-        _unlink_if_exists(case.heatmap_path)
-        _unlink_if_exists(case.heatmap_layer_path)
+        delete_case_image(case.image_path)
+        delete_case_image(case.display_image_path)
+        delete_case_image(case.heatmap_path)
+        delete_case_image(case.heatmap_layer_path)
         case.image_path = None
         case.display_image_path = None
         case.heatmap_path = None

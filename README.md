@@ -11,7 +11,7 @@ Assessing a child's bone age from a hand X-ray is a standard way to check whethe
 BoneAge AI is a web app for a radiology/paediatric workflow:
 
 1. A clinician enters patient details and uploads a left-hand X-ray.
-2. A CNN predicts bone age from the image plus the patient's sex, with an uncertainty estimate and a Grad-CAM attention heatmap.
+2. A CNN predicts bone age from the image plus the patient's sex, with an uncertainty estimate and an attention heatmap (Grad-CAM when training/evaluating on PyTorch, Score-CAM — a gradient-free stand-in — on the deployed ONNX Runtime backend; see [docs/model.md#explainability](docs/model.md#explainability)).
 3. A **growth review agent** compares predicted bone age against chronological age (computed from date of birth and X-ray date) using a configurable, sex- and age-specific normal range. Cases outside range, or where the model is uncertain, are flagged with a short explanatory note and possible causes for the doctor to check — cases inside range can be auto-cleared.
 4. A doctor reviews flagged (and, if desired, cleared) cases in a **review queue**, opens a **case report** (X-ray, heatmap, measurements, agent reasoning, history), and records a decision: confirm the flag, mark within expected range, or flag the model's read as wrong and re-read manually. The doctor's decision is always final.
 
@@ -19,7 +19,7 @@ BoneAge AI is a web app for a radiology/paediatric workflow:
 
 - Patient intake with automatic chronological age calculation from date of birth + X-ray date.
 - Image quality checks before inference (hand detected, orientation, resolution, burned-in patient identifiers removed).
-- CNN bone age prediction using image + sex, with uncertainty estimate and Grad-CAM heatmap.
+- CNN bone age prediction using image + sex, with uncertainty estimate and an attention heatmap.
 - Configurable normal-range rules, based on Greulich & Pyle–derived SD reference data (exact tables `[TBD, to verify]`); demo default shown as ±2 SD in the UI, with the threshold and reference tables configurable in Settings, not hard-coded medical facts.
 - Growth review agent: rule-based flag decision (auditable), LLM-written explanation of what to check — never a diagnosis.
 - Review queue with status tabs, search, sex filter, sorting, and pagination.
@@ -43,7 +43,7 @@ Plan: train on RSNA; evaluate the gap-flagging agent and generalisation on DHA a
 ```
 Clinician → Frontend (React) → Backend (FastAPI)
                                    ├── Image quality checks
-                                   ├── CNN inference (bone age, uncertainty, Grad-CAM)
+                                   ├── CNN inference (bone age, uncertainty, attention heatmap)
                                    ├── Growth review agent (deterministic tools + LLM note)
                                    └── Case storage (DB + image storage)
                                    → Review queue → Doctor decision → PDF export / follow-up scheduling
@@ -55,18 +55,19 @@ Full component breakdown, data flow, and a Mermaid diagram are in [docs/architec
 
 *Confirmed by the team — proposed stack below, now final for the hackathon build.*
 
-- **Model:** Python, PyTorch, pretrained CNN backbone (e.g. EfficientNet/ResNet) with sex concatenated into the regression head; Grad-CAM for heatmaps; uncertainty via MC dropout.
-- **Backend:** FastAPI serving inference, case storage, and the agent.
+- **Model (training):** Python, PyTorch, pretrained CNN backbone (e.g. EfficientNet/ResNet) with sex concatenated into the regression head; Grad-CAM for heatmaps; uncertainty via MC dropout. Trained/evaluated/exported entirely within `ml/` (see [ml/README.md](ml/README.md)).
+- **Model (deployed inference):** ONNX Runtime, not PyTorch — `ml/export_onnx.py` exports a trained checkpoint to three ONNX graphs; the backend runs MC-dropout uncertainty and Score-CAM (a gradient-free Grad-CAM stand-in) purely via ONNX Runtime + numpy, with zero `torch`/`torchvision` at request time. See [docs/model.md#explainability](docs/model.md#explainability) and [docs/architecture.md#deployment-notes](docs/architecture.md#deployment-notes) for why.
+- **Backend:** FastAPI serving inference, case storage, and the agent — deployed as a Vercel Python Function (see [docs/architecture.md#deployment-notes](docs/architecture.md#deployment-notes)).
 - **Agent:** LLM agent built on the **OpenAI Agents SDK**, calling deterministic tools (`compute_chronological_age`, `get_normal_range`, `compare_gap`, `write_doctor_note`) so the flag decision is rule-based and auditable; the LLM only writes the explanation, and only ever receives structured numbers/labels — never images or patient names (see [docs/safety-and-ethics.md](docs/safety-and-ethics.md#privacy)).
 - **Frontend:** React + TypeScript + Vite + Tailwind, theming via CSS variables.
-- **Storage:** SQLite or Postgres for cases; local/object storage for images. Default case/image retention: 30 days.
-- **Hosting:** frontend on Vercel; backend + model on Render; local fallback for the live demo. See [docs/architecture.md](docs/architecture.md#deployment-notes-hackathon-demo).
+- **Storage:** SQLite for local dev/tests; Postgres (Neon, via the Vercel Marketplace) in production. Images: local disk for local dev/tests; Vercel Blob in production. Default case/image retention: 30 days, enforced by a Vercel Cron job.
+- **Hosting:** frontend and backend are two separate Vercel projects (frontend static + Vite build; backend a Python Function); local fallback for the live demo. See [docs/architecture.md](docs/architecture.md#deployment-notes).
 
 See [docs/model.md](docs/model.md), [docs/architecture.md](docs/architecture.md), [docs/api.md](docs/api.md).
 
 ## Setup
 
-The repo is scaffolded (`backend/`, `frontend/`, `ml/`) — `ml/` (data pipeline + model) and `backend/` (API + growth review agent) both have real code; frontend is still a placeholder. See [docs/tasks.md](docs/tasks.md) for what's next.
+`ml/` (data pipeline + model), `backend/` (API + growth review agent), and `frontend/` all have real code. See [docs/tasks.md](docs/tasks.md) for what's next.
 
 **ML data pipeline + model** (see [ml/README.md](ml/README.md) for details):
 ```bash
@@ -98,28 +99,32 @@ npm run test      # vitest
 npm run build     # production build (tsc -b && vite build)
 ```
 
-## Deployment setup (Vercel + Render + GitHub Actions)
+## Deployment setup (Vercel + GitHub Actions)
 
-Frontend on **Vercel**, backend + model on **Render**, both deployed only through `.github/workflows/deploy.yml` after `.github/workflows/ci.yml` passes on `main` (see [docs/architecture.md](docs/architecture.md#deployment-notes-hackathon-demo)). Do this once, in order:
+Frontend **and** backend are both deployed to **Vercel**, as two separate projects from this one repo — the backend as a Python Function (see `backend/vercel.json`, `backend/.python-version`; no Docker/Render involved). Both deploy only through `.github/workflows/deploy.yml`, after `.github/workflows/ci.yml` passes on `main` (see [docs/architecture.md](docs/architecture.md#deployment-notes)). Do this once, in order:
 
-1. **Create the Render service.** New → Blueprint → point it at this repo (uses the committed `render.yaml`, which sets `rootDir: backend`). Let it create the service but don't wait for its first build to matter yet.
-2. **Turn off Render's auto-deploy.** On the service's Settings page, disable "Auto-Deploy" — deploys should only happen via the GitHub Actions workflow below, never on a raw `git push`.
-3. **Set the Render service's secret env vars** (Settings → Environment): `CORS_ORIGIN` (fill in after step 6, once you have the Vercel URL), and optionally `CHECKPOINT_DOWNLOAD_URL` and `OPENAI_API_KEY`. `SECRET_KEY` is auto-generated by `render.yaml`.
-4. **Get a Render deploy hook URL.** Settings → Deploy Hook → copy the URL.
-5. **Create the Vercel project.** New Project → import this repo → set its **Root Directory** to `frontend`. Framework preset: Vite. Add a Production environment variable `VITE_API_BASE_URL` pointing at the Render service's URL (from step 1), e.g. `https://boneage-ai-backend.onrender.com`.
-6. **Turn off Vercel's auto-deploy from Git.** Project Settings → Git → disconnect/disable automatic deployments from the GitHub integration (deploys should only come from the workflow's `vercel deploy`, not Vercel's own push listener).
-7. **Get Vercel's token and IDs:**
+1. **Create the backend Vercel project.** New Project → import this repo → set its **Root Directory** to `backend`. Vercel auto-detects it as a Python project (`app/main.py`'s `app` — see `backend/vercel.json`); no Build/Output Directory overrides needed.
+2. **Keep "Include files outside the Root Directory in the Build Step" enabled** (Project Settings → Build and Deployment → Root Directory — it's the default). The backend imports `ml/boneage/*` from the sibling `ml/` directory at runtime; turning this off breaks the real (non-mock) prediction path.
+3. **Add a Postgres database.** Project → Storage → Marketplace → Neon (or your own Neon project, connected the same way) → connect it to this project. Vercel sets `DATABASE_URL` automatically (a bare `postgres://`/`postgresql://` URL is fine — `app/database.py` normalises it to use `psycopg` itself).
+4. **Add a Blob store.** Project → Storage → Blob → create one → connect it to this project. Vercel sets `BLOB_READ_WRITE_TOKEN` automatically — its mere presence is what switches `app/storage.py` from local disk to Blob.
+5. **Set the backend project's remaining env vars** (Settings → Environment Variables, Production): `SECRET_KEY` (generate with `python -c "import secrets; print(secrets.token_hex(32))"`), `CRON_SECRET` (any random 16+ character string — secures the retention-cleanup cron, see `app/routers/internal.py`), `CORS_ORIGIN` (fill in after step 8, once you have the frontend's URL), and optionally `ONNX_DOWNLOAD_URL` and `OPENAI_API_KEY`.
+6. **Turn off the backend project's auto-deploy from Git.** Project Settings → Git → disconnect/disable automatic deployments — deploys should only come from the workflow's `vercel deploy`, not Vercel's own push listener.
+7. **Create the frontend Vercel project.** New Project → import this repo again → set its **Root Directory** to `frontend`. Framework preset: Vite. Add a Production environment variable `VITE_API_BASE_URL` pointing at the backend project's URL from step 1, e.g. `https://boneage-ai-backend.vercel.app`.
+8. **Turn off the frontend project's auto-deploy from Git**, same as step 6.
+9. **Get Vercel's token and IDs:**
    - `VERCEL_TOKEN`: Vercel → Account Settings → Tokens → create one.
-   - `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID`: either read them from `frontend/.vercel/project.json` after running `vercel link` locally once, or from the project's Settings → General page.
-8. **Go back to Render and fill in `CORS_ORIGIN`** with the Vercel project's URL from step 5 (e.g. `https://boneage-ai.vercel.app`).
-9. **Add the GitHub repo secrets** (Settings → Secrets and variables → Actions): `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID`, `RENDER_DEPLOY_HOOK_URL`.
-10. **Push to `main`.** CI runs; once it's green, the deploy workflow builds/deploys the frontend to Vercel and calls the Render deploy hook.
+   - `VERCEL_ORG_ID`: the same for both projects — read it from either project's `.vercel/project.json` after running `vercel link` locally once, or from Settings → General.
+   - `VERCEL_PROJECT_ID` (frontend) and a second, separate project id for the backend project — same place, per project.
+10. **Go back to the backend project and fill in `CORS_ORIGIN`** with the frontend project's URL from step 7 (e.g. `https://boneage-ai.vercel.app`).
+11. **Add the GitHub repo secrets** (Settings → Secrets and variables → Actions): `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` (frontend), `VERCEL_BACKEND_PROJECT_ID`, and `DATABASE_URL` (the same Postgres connection string from step 3 — needed separately here so the deploy workflow's migration job can run `alembic upgrade head` against production from the GitHub Actions runner; see `.github/workflows/deploy.yml`'s `migrate-backend-db` job).
+12. **Push to `main`.** CI runs; once it's green, the deploy workflow applies DB migrations, then builds/deploys both Vercel projects.
 
-Never put any of the above tokens/hooks/keys in code, `render.yaml`, or the workflow files — they're GitHub/Vercel/Render secrets only.
+Never put any of the above tokens/URLs/keys in code or the workflow files — they're GitHub secrets and Vercel environment variables only.
 
 Notes:
-- SQLite lives on Render's local disk and is **not persisted** across deploys on the free tier — every deploy re-runs migrations and re-seeds the demo data (`backend/scripts/seed_demo_data.py`). Fine for a hackathon demo; don't expect data entered between deploys to survive the next one.
-- If the Render service goes to sleep (free-tier idling), the first request after a deploy/wake can take up to ~60s — open the app a minute before a live demo.
+- **Exporting a trained model:** once you have a real checkpoint, run `python ml/export_onnx.py --config ml/config/config.yaml --checkpoint ml/checkpoints/best_model.pt --out-dir ml/checkpoints/onnx`, upload the resulting directory as a zip somewhere reachable, and set `ONNX_DOWNLOAD_URL` on the backend project — it's fetched lazily on the first real prediction request after a cold start (see `app/inference_adapter.py`). Until then, the API transparently falls back to the clearly-labelled mock predictor.
+- **Retention cleanup** runs automatically via Vercel Cron (`backend/vercel.json`'s `crons`, daily) — see [backend/README.md](backend/README.md#data-retention-cleanup).
+- Vercel Functions can cold-start — the first request after a period of inactivity may take a few seconds longer, most noticeably for a real (ONNX) prediction. Open the app a minute before a live demo.
 - See [docs/demo-script.md](docs/demo-script.md) for the judge walkthrough once it's deployed (or running locally as a fallback).
 
 ## Documentation map

@@ -47,7 +47,7 @@ Theme toggle and age-unit display preference are personal, not administrative, a
 ### Prediction
 - **FR-9.** The system shall predict bone age using the uploaded image and the patient's sex as model inputs.
 - **FR-10.** The system shall return an uncertainty estimate alongside the bone age prediction.
-- **FR-11.** The system shall generate and display an attention heatmap (e.g. Grad-CAM) for the prediction.
+- **FR-11.** The system shall generate and display an attention heatmap (e.g. Grad-CAM/Score-CAM — see [model.md#explainability](model.md#explainability)) for the prediction.
 
 ### Growth review agent
 - **FR-12.** The system shall compare predicted bone age to chronological age using a configurable, sex- and age-specific normal range (see [AGENTS.md](../AGENTS.md#the-growth-review-agent)).
@@ -92,7 +92,7 @@ Theme toggle and age-unit display preference are personal, not administrative, a
 - AC: image quality issues (no hand detected, wrong orientation, low resolution, burned-in identifiers) are surfaced before the case proceeds to prediction.
 
 **US-2 — As a doctor, I want to see the predicted bone age with an uncertainty estimate and a heatmap, so that I can judge how much to trust the prediction.**
-- AC: the case report shows bone age, uncertainty, and the Grad-CAM heatmap overlaid on the X-ray.
+- AC: the case report shows bone age, uncertainty, and an attention heatmap (Grad-CAM/Score-CAM, see [model.md#explainability](model.md#explainability)) overlaid on the X-ray.
 - AC: the heatmap uses the inferno-style colour scale from [design.md](design.md#design-tokens).
 
 **US-3 — As a doctor, I want cases where bone age and chronological age diverge to be flagged automatically, so that I don't miss them in a busy queue.**

@@ -1,0 +1,90 @@
+name: CI
+
+# Runs on every push and pull request (see docs/tasks.md Phase 5). All three
+# suites run on CPU only, with pretrained=False where relevant, so nothing
+# here needs the real RSNA dataset, a trained checkpoint, or network access
+# at test time (see ml/README.md, backend/README.md).
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.13"
+  NODE_VERSION: "20"
+  # CPU-only PyTorch build — the default PyPI wheel pulls in CUDA libraries
+  # that aren't needed here and make CI slow/huge for no reason.
+  TORCH_INDEX_URL: https://download.pytorch.org/whl/cpu
+
+jobs:
+  ml-tests:
+    name: ML tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: ml/requirements.txt
+
+      - name: Install CPU-only PyTorch
+        run: pip install torch==2.15.0 torchvision==0.29.2 --index-url ${{ env.TORCH_INDEX_URL }}
+
+      - name: Install ml dependencies
+        run: pip install -r ml/requirements.txt
+
+      - name: Run ml tests
+        run: pytest ml
+
+  backend-tests:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install CPU-only PyTorch
+        run: pip install torch==2.15.0 torchvision==0.29.2 --index-url ${{ env.TORCH_INDEX_URL }}
+
+      - name: Install backend dependencies
+        run: pip install -r backend/requirements.txt
+
+      - name: Run backend tests
+        # Each test run gets its own temp SQLite DB, migrated with the real
+        # Alembic chain, and forces the mock predictor / template note
+        # fallback (no checkpoint, no OPENAI_API_KEY) — see backend/tests/conftest.py.
+        run: pytest
+        working-directory: backend
+
+  frontend:
+    name: Frontend tests + build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+        working-directory: frontend
+
+      - name: Run frontend tests
+        run: npm run test
+        working-directory: frontend
+
+      - name: Build frontend
+        run: npm run build
+        working-directory: frontend

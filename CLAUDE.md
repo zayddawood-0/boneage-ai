@@ -12,10 +12,12 @@ Full product description: [README.md](README.md). Requirements: [docs/requiremen
 
 ## Current state
 
-`ml/` and `backend/` both have real code now; `frontend/` is still a placeholder (a README + `package.json` only — no React app yet).
+`ml/`, `backend/`, and `frontend/` all have real code now, plus CI/CD (`.github/workflows/`) and deployment config (`render.yaml`, `frontend/vercel.json`).
 
 - **`ml/`** — the RSNA data pipeline (config, preprocessing, augmentation, `Dataset`/`DataLoader`) and the model itself (architecture, training loop, evaluation, Grad-CAM, MC-dropout inference, a Kaggle training notebook), with unit tests. See [ml/README.md](ml/README.md). **No real training has been run yet** — every metric in [docs/model.md](docs/model.md) is still `[TBD]`; do not fill those in until a real checkpoint has actually been trained and evaluated and the numbers copied in by hand.
-- **`backend/`** — a working FastAPI app: auth + role-based access control, patients, cases, upload + image quality checks, prediction (real `ml/boneage/inference.py` if a checkpoint exists, otherwise a clearly-labelled mock), the growth review agent (deterministic rules + OpenAI-Agents-SDK note-writing with a template fallback), doctor decisions, PDF export, settings, and a demo-data seed script. SQLite via Alembic migrations. See [backend/README.md](backend/README.md). The SD-based reference table is an intentionally empty `[TBD — to verify]` template — no SD values have been filled in.
+- **`backend/`** — a working FastAPI app: auth + role-based access control, patients, cases, upload + image quality checks, prediction (real `ml/boneage/inference.py` if a checkpoint exists, otherwise a clearly-labelled mock), the growth review agent (deterministic rules + OpenAI-Agents-SDK note-writing with a template fallback), doctor decisions, PDF export, settings, a data-retention cleanup task, and a demo-data seed script. SQLite via Alembic migrations. CORS configured for a deployed frontend origin. See [backend/README.md](backend/README.md). The SD-based reference table is an intentionally empty `[TBD — to verify]` template — no SD values have been filled in.
+- **`frontend/`** — a React + TypeScript + Vite + Tailwind app translating every `design/` screen pixel-for-pixel: sign in, dashboard, new analysis, review queue, case report, patients, model performance, settings. See [frontend/README.md](frontend/README.md).
+- **CI/CD** — GitHub Actions run the ml/backend/frontend test suites and the frontend build on every push/PR (`.github/workflows/ci.yml`); a deploy workflow (`.github/workflows/deploy.yml`) ships the frontend to Vercel and triggers a Render deploy for the backend after CI passes on `main`. See [README.md#deployment-setup-vercel--render--github-actions](README.md#deployment-setup-vercel--render--github-actions).
 
 Check the repo layout below before assuming a path exists.
 
@@ -93,11 +95,17 @@ cd backend
 pytest
 ```
 
-Everything else is still a placeholder — do not invent commands that don't exist yet, update this file the moment real tooling lands instead:
+**Frontend** (see [frontend/README.md](frontend/README.md) for full details):
+```bash
+cd frontend
+npm install
+npm run dev     # dev server at http://localhost:5173, proxies /api to the backend
+npm run test    # vitest
+npm run build   # tsc -b && vite build
+npm run lint     # oxlint
+```
 
-- [ ] TODO: frontend dev server command
-- [ ] TODO: frontend test commands
-- [ ] TODO: lint/typecheck commands
+**CI/CD:** `.github/workflows/ci.yml` runs all three test suites + the frontend build on every push/PR; `.github/workflows/deploy.yml` deploys to Vercel (frontend) and Render (backend) after CI passes on `main`. See [README.md#deployment-setup-vercel--render--github-actions](README.md#deployment-setup-vercel--render--github-actions) for the one-time setup checklist and required GitHub secrets.
 
 ## Coding conventions
 

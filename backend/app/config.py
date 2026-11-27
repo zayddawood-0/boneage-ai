@@ -30,6 +30,21 @@ class Settings(BaseSettings):
         REPO_ROOT / "backend" / "data" / "reference_tables" / "greulich_pyle_sd_reference.json"
     )
 
+    # Comma-separated list of allowed frontend origins for CORS — set to the
+    # Vercel URL in production (see render.yaml, README.md deployment setup).
+    cors_origin: str = "http://localhost:5173"
+
+    # Optional URL to fetch the trained model checkpoint from at startup
+    # (see backend/scripts/download_checkpoint.py). The checkpoint itself is
+    # gitignored, so Render's ephemeral filesystem needs this on each deploy;
+    # if unset or the download fails, the API falls back to the mock
+    # predictor automatically (app/inference_adapter.py).
+    checkpoint_download_url: str = ""
+
+    @property
+    def cors_origins(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_origin.split(",") if origin.strip()]
+
 
 def get_settings() -> Settings:
     return Settings()

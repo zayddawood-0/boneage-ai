@@ -10,10 +10,12 @@ Guidance for coding agents (Codex, Cursor, Copilot Workspace, etc.) working in t
 
 ## Current state
 
-`ml/` and `backend/` both have real code now; `frontend/` is still a placeholder (a README + `package.json` only).
+`ml/`, `backend/`, and `frontend/` all have real code now, plus CI/CD (`.github/workflows/`) and deployment config (`render.yaml`, `frontend/vercel.json`).
 
 - **`ml/`** — the RSNA data pipeline and the model itself (architecture, training loop, evaluation, Grad-CAM, MC-dropout inference, a Kaggle training notebook), with unit tests (see [ml/README.md](ml/README.md)). **No real training has been run yet** — every metric in [docs/model.md](docs/model.md) stays `[TBD]` until a real checkpoint is trained and evaluated and the numbers copied in by hand; never fabricate them.
-- **`backend/`** — a working FastAPI app: auth + role-based access control, patients, cases, upload + image quality checks, prediction (real model if a checkpoint exists, otherwise a clearly-labelled mock), the growth review agent (see below), doctor decisions, PDF export, settings, and a demo-data seed script. SQLite via Alembic migrations (see [backend/README.md](backend/README.md)). The SD-based reference table is an intentionally empty `[TBD — to verify]` template.
+- **`backend/`** — a working FastAPI app: auth + role-based access control, patients, cases, upload + image quality checks, prediction (real model if a checkpoint exists, otherwise a clearly-labelled mock), the growth review agent (see below), doctor decisions, PDF export, settings, a data-retention cleanup task, and a demo-data seed script. SQLite via Alembic migrations (see [backend/README.md](backend/README.md)). The SD-based reference table is an intentionally empty `[TBD — to verify]` template.
+- **`frontend/`** — a React + TypeScript + Vite + Tailwind app translating every `design/` screen pixel-for-pixel (see [frontend/README.md](frontend/README.md)).
+- **CI/CD** — GitHub Actions run all three test suites + the frontend build on every push/PR (`.github/workflows/ci.yml`); a deploy workflow ships the frontend to Vercel and triggers a Render deploy after CI passes on `main` (`.github/workflows/deploy.yml`). See [README.md#deployment-setup-vercel--render--github-actions](README.md#deployment-setup-vercel--render--github-actions).
 
 ## Repo layout (planned)
 
@@ -40,7 +42,15 @@ pip install -r backend/requirements.txt
 cd backend && alembic upgrade head && uvicorn app.main:app --reload
 ```
 
-runs the backend API (Swagger UI at `/docs`); `pytest` from `backend/` runs its tests (own temp SQLite DB, migrated with Alembic, no network/LLM calls needed). See [backend/README.md](backend/README.md) for the seed script and full details. Frontend tooling is still a placeholder. See [CLAUDE.md](CLAUDE.md#how-to-run-things) — update both files together once more real commands exist.
+runs the backend API (Swagger UI at `/docs`); `pytest` from `backend/` runs its tests (own temp SQLite DB, migrated with Alembic, no network/LLM calls needed). See [backend/README.md](backend/README.md) for the seed script and full details.
+
+```bash
+cd frontend && npm install && npm run dev    # dev server, proxies /api to the backend
+npm run test                                 # vitest, from frontend/
+npm run build                                # tsc -b && vite build
+```
+
+See [frontend/README.md](frontend/README.md). CI (`.github/workflows/ci.yml`) runs all three test suites + the frontend build on every push/PR; deploys (`.github/workflows/deploy.yml`) go to Vercel + Render after CI passes on `main` — see [README.md#deployment-setup-vercel--render--github-actions](README.md#deployment-setup-vercel--render--github-actions) for the one-time setup checklist.
 
 ## Frontend design (locked)
 

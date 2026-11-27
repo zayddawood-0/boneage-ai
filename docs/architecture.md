@@ -69,3 +69,4 @@ flowchart TD
 - Secrets (LLM API keys, DB credentials) via environment variables / `.env`, never committed.
 - Demo uses dataset images only (RSNA/DHA/RHPE samples) — no real patient data, even for the local fallback.
 - Pre-demo checklist: seed a handful of sample cases (mix of flagged/normal) so the review queue and case report aren't empty during the live demo; verify the local fallback works end-to-end before demo day.
+- CI/CD: GitHub Actions run the ml/backend/frontend test suites and the frontend build on every push/PR, then deploy to Vercel + Render after CI passes on `main` — see [README.md#deployment-setup-vercel--render--github-actions](../README.md#deployment-setup-vercel--render--github-actions) for the one-time setup and [demo-script.md](demo-script.md) for the judge walkthrough.

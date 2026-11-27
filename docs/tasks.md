@@ -95,3 +95,17 @@ Every **Frontend** task below means translating that screen's file in [`design/`
 - [ ] Final check of disclaimers/safety copy across UI and docs per [safety-and-ethics.md](safety-and-ethics.md)
 - [ ] Deploy frontend to Vercel and backend + model to Render; verify the local fallback runs end-to-end
 - [ ] Side-by-side check of each screen against its design/ file in light and dark themes
+
+## Phase 5 — CI/CD, deployment, and demo readiness
+
+- [x] CI workflow (`.github/workflows/ci.yml`): ml tests, backend tests, frontend tests, and the frontend build on every push/PR — CPU-only, `pretrained=False` where relevant, pip/npm caching, no dataset or checkpoint downloads needed
+- [x] Deploy workflow (`.github/workflows/deploy.yml`): fires after CI passes on `main` (`workflow_run`); deploys the frontend to Vercel via the Vercel CLI (`VERCEL_TOKEN`/`VERCEL_ORG_ID`/`VERCEL_PROJECT_ID`) and triggers a Render deploy via `RENDER_DEPLOY_HOOK_URL` — see the setup checklist in [README.md](../README.md#deployment-setup-vercel--render--github-actions)
+- [x] `frontend/vercel.json` SPA rewrite so client-side routes (`react-router-dom`'s `BrowserRouter`) survive a deep link/refresh
+- [x] `render.yaml`: start command runs the checkpoint download step, Alembic migrations, and the demo seed on every deploy; env vars for the JWT secret (generated), optional `OPENAI_API_KEY`, and `CORS_ORIGIN` (set to the Vercel URL)
+- [x] CORS middleware (`backend/app/main.py`, `CORS_ORIGIN` setting) — not needed for local dev (Vite proxy), required once frontend/backend are on separate origins
+- [x] Startup checkpoint download step (`backend/scripts/download_checkpoint.py`) — best-effort fetch from `CHECKPOINT_DOWNLOAD_URL`; never fails the deploy, falls back to the mock predictor (the "Demo model" chip) automatically if unset or the download fails
+- [x] Data-retention cleanup task (`backend/app/retention.py`, `backend/scripts/cleanup_retention.py`) — deletes X-ray images/heatmaps for cases past the configured `retention_days`, keeps the case record itself; not wired into an automatic scheduler for the hackathon build, run manually or via an external cron
+- [x] `docs/demo-script.md` — 3–4 minute judge walkthrough using the seeded demo cases
+- [x] README.md setup checklist for creating the Vercel/Render projects, getting each token/hook, and adding the GitHub secrets
+- [ ] Actually create the Vercel and Render projects and run through the checklist end-to-end on the real services (the workflows/config are written and validated locally; nobody has clicked through Vercel/Render yet)
+- [ ] Rehearse the demo script live against the deployed (not just local) environment

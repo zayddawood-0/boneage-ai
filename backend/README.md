@@ -23,6 +23,7 @@ backend/
 │   ├── inference_adapter.py             # real ml/boneage/inference.py, or a labelled mock
 │   ├── pdf.py                             # case report PDF export
 │   ├── settings_store.py                   # the singleton GrowthReviewSettings row
+│   ├── retention.py                          # data-retention cleanup (deletes expired images/heatmaps)
 │   ├── agent/                                # the growth review agent — see AGENTS.md
 │   │   ├── tools.py                           # deterministic flag decision
 │   │   ├── reference_table.py                  # SD-based reference table loader
@@ -31,7 +32,10 @@ backend/
 │   └── routers/                                     # auth, patients, cases, settings, model_performance
 ├── migrations/                 # Alembic — see "Database" below
 ├── data/reference_tables/        # greulich_pyle_sd_reference.json — EMPTY [TBD] template, see below
-├── scripts/seed_demo_data.py       # demo users + BA-1037..1042 sample cases
+├── scripts/
+│   ├── seed_demo_data.py            # demo users + BA-1037..1042 sample cases
+│   ├── download_checkpoint.py        # best-effort checkpoint fetch at startup (deployment)
+│   └── cleanup_retention.py           # deletes images/heatmaps past the configured retention period
 ├── tests/                             # pytest — see "Tests" below
 ├── alembic.ini, pytest.ini
 ├── requirements.txt
@@ -72,6 +76,21 @@ alembic downgrade -1                                      # roll back one step
 
 It generates three same-sized images per case (`app/storage.py`): `GET /cases/{id}/heatmap` (pre-blended, for the PDF), `GET /cases/{id}/image` (the plain X-ray alone — always real, even in mock mode), and `GET /cases/{id}/heatmap-layer` (the heatmap alone, transparent PNG, so the frontend can composite the two independently — adjustable opacity, side-by-side view). In mock mode only the heatmap layer is fabricated (a visibly-marked flat amber tint + "MOCK HEATMAP" text), never the X-ray itself.
 
+## CORS and the checkpoint download step (deployment)
+
+Locally, the frontend talks to the backend through the Vite dev proxy (same origin, no CORS needed). Once frontend and backend are on separate origins (Vercel + Render), the backend needs `CORS_ORIGIN` (backend/.env, comma-separated) set to the frontend's URL — enforced in `app/main.py` via `CORSMiddleware`.
+
+Since the model checkpoint is gitignored and Render's free tier has no persistent disk, `backend/scripts/download_checkpoint.py` runs before the API starts (see `render.yaml`) and fetches it from `CHECKPOINT_DOWNLOAD_URL` if set. It never fails the deploy: if the URL is unset or the download fails, it just logs that and the API falls back to the mock predictor, same as local dev without a checkpoint.
+
+## Data retention cleanup
+
+`backend/scripts/cleanup_retention.py` deletes the X-ray image and heatmap files (and clears the matching DB path columns) for any case older than the configured `retention_days` (Settings > Data & privacy, default 30 — see [docs/safety-and-ethics.md](../docs/safety-and-ethics.md#privacy)). The case record itself (prediction, flag status, doctor decision) is kept for review history; only the images are removed, and `GET /cases/{id}/image` etc. 404 afterwards. Not wired into an automatic scheduler for the hackathon build — run it manually, or point a host-level cron / Render Cron Job at it:
+
+```bash
+cd backend
+python scripts/cleanup_retention.py
+```
+
 ## The growth review agent
 
 See [AGENTS.md](../AGENTS.md#the-growth-review-agent) for the full spec. In short: `app/agent/tools.py` makes the flag decision in plain, deterministic Python (never the LLM); `app/agent/note_writer.py` is the one LLM-authored step (OpenAI Agents SDK, only ever given structured numbers/labels — never the image or patient name), falling back to a fixed template note when `OPENAI_API_KEY` is unset or the call fails.
@@ -85,4 +104,4 @@ cd backend
 pytest
 ```
 
-Each test run gets its own temp SQLite database, migrated with the real Alembic chain (not `create_all`). Covers: the agent's deterministic rules at threshold boundaries (both sexes, delayed/advanced/uncertain, both rule types), that no image or patient-identifying value ever reaches the LLM payload, role-based access on every endpoint, the real-vs-mock inference adapter (training a tiny throwaway checkpoint the same way `ml/tests` does, to exercise the "real" path honestly), and the full upload → predict → agent-review → doctor-decision → PDF-export flow.
+Each test run gets its own temp SQLite database, migrated with the real Alembic chain (not `create_all`). Covers: the agent's deterministic rules at threshold boundaries (both sexes, delayed/advanced/uncertain, both rule types), that no image or patient-identifying value ever reaches the LLM payload, role-based access on every endpoint, the real-vs-mock inference adapter (training a tiny throwaway checkpoint the same way `ml/tests` does, to exercise the "real" path honestly), the full upload → predict → agent-review → doctor-decision → PDF-export flow, and the retention cleanup task (expired cases lose their images, recent cases and already-cleaned cases are left alone).

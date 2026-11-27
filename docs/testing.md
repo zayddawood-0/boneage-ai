@@ -50,14 +50,4 @@ The growth review agent's **flag decision** must be deterministic — this is th
 
 ## Demo script
 
-A suggested run-through for the live hackathon demo (adjust once real screens/data exist):
-
-1. **Sign in** as a clinician.
-2. **Dashboard** — show summary cards and the bone age vs. chronological age chart with seeded demo cases.
-3. **New analysis** — walk through all 3 steps for a fresh patient: enter details (point out chronological age auto-computing), upload a sample X-ray (show a quality-check failure on a deliberately bad image, then a good one), view the result (bone age, uncertainty, heatmap).
-4. **Growth review agent** — show the flag decision and doctor note for a prepared case that's clearly outside the normal range (e.g. an advanced case), then show a prepared in-range case being auto-cleared — to demonstrate both paths.
-5. **Review queue** — filter by status/sex, sort, open a flagged case.
-6. **Case report** — walk through the X-ray + heatmap, measurements, agent reasoning, record a doctor decision (confirm flag), add a note, export the PDF, schedule a follow-up.
-7. **Model performance** — show the MAE breakdowns/model card (clearly labelled `[TBD]`/pending if real numbers aren't ready) and the stated limitations.
-8. **Settings** — show the normal-range threshold/reference table and auto-clear toggle are configurable, and toggle the theme to show dark mode.
-9. **Close** with the decision-support disclaimer (see [safety-and-ethics.md](safety-and-ethics.md)) — reiterate this is not a diagnostic tool.
+See [demo-script.md](demo-script.md) for the full 3–4 minute judge walkthrough, using the seeded demo cases (`backend/scripts/seed_demo_data.py`) and the deployed (or local-fallback) app.

@@ -76,6 +76,7 @@ button{font-family:inherit;cursor:pointer}
       <div style="display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--row); font-size: 14px"><span style="color: var(--muted)">Task</span><span style="font-weight: 600; text-align: right">Bone age regression from left-hand X-ray</span></div>
       <div style="display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--row); font-size: 14px"><span style="color: var(--muted)">Inputs</span><span style="font-weight: 600; text-align: right">X-ray image + sex</span></div>
       <div style="display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--row); font-size: 14px"><span style="color: var(--muted)">Architecture</span><span style="font-weight: 600; text-align: right">[Backbone, e.g. CNN name]</span></div>
+      <div style="display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--row); font-size: 14px"><span style="color: var(--muted)">Heatmap method</span><span style="font-weight: 600; text-align: right">Score-CAM (gradient-free)</span></div>
       <div style="display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--row); font-size: 14px"><span style="color: var(--muted)">Training data</span><span style="font-weight: 600; text-align: right">RSNA Pediatric Bone Age Challenge 2017</span></div>
       <div style="display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--row); font-size: 14px"><span style="color: var(--muted)">Dataset split</span><span style="font-weight: 600; text-align: right">12,611 train · 1,425 validation · 200 test</span></div>
       <div style="display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--row); font-size: 14px"><span style="color: var(--muted)">Version</span><span style="font-weight: 600; text-align: right"><span style="font-family: 'IBM Plex Mono', monospace">[v_._]</span></span></div>
@@ -95,7 +96,7 @@ button{font-family:inherit;cursor:pointer}
 </main>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":1300}}'>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":1340}}'>
 class Component extends DCLogic {
   constructor(props) { super(props); this.state = { theme: null }; }
   renderVals() {

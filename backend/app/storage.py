@@ -1,8 +1,10 @@
 """Image storage for uploaded X-rays and generated heatmaps.
 
-Two backends, selected automatically by whether `BLOB_READ_WRITE_TOKEN` is
-set (see `config.py`'s `Settings.use_blob_storage`) — nothing above this
-module needs to know which one is active:
+Two backends, selected automatically by whether Blob is configured — either
+`BLOB_STORE_ID` (set by `vercel storage connect`, the current OIDC-based
+credential mode) or `BLOB_READ_WRITE_TOKEN` (see `config.py`'s
+`Settings.use_blob_storage`) — nothing above this module needs to know
+which one is active:
 
 - **Local disk** (default, used for local dev and tests) — files under
   `UPLOAD_DIR`, keyed by the case's numeric id.

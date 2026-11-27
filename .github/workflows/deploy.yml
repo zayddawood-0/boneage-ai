@@ -59,8 +59,14 @@ jobs:
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
+      # Deliberately run from the repo root, not `working-directory:
+      # frontend` — Vercel CLI combines the project's Root Directory setting
+      # ("frontend") with the directory it's invoked from, so running it
+      # from inside frontend/ produces an invalid "frontend/frontend" path
+      # (reproduced empirically; see docs/tasks.md Phase 7). Running from
+      # the repo root and letting Root Directory alone resolve the
+      # subdirectory is the combination that actually works.
       - name: Pull Vercel project settings
-        working-directory: frontend
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
@@ -70,14 +76,12 @@ jobs:
       # Vercel project's own Production env var, fetched by `vercel pull`
       # above — see README.md's setup checklist. Nothing to pass here.
       - name: Build frontend via Vercel CLI
-        working-directory: frontend
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Deploy prebuilt output
-        working-directory: frontend
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
@@ -99,25 +103,23 @@ jobs:
         run: npm install --global vercel@latest
 
       # Separate Vercel project from the frontend (Root Directory: backend/,
-      # zero-config Python detection of app/main.py — see vercel.json and
+      # Python Function at api/index.py — see vercel.json and
       # README.md#deployment-setup-vercel--github-actions). Same org/token,
-      # different project id.
+      # different project id. Run from the repo root, not `working-directory:
+      # backend` — see the matching comment in deploy-frontend above for why.
       - name: Pull Vercel project settings
-        working-directory: backend
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Build backend via Vercel CLI
-        working-directory: backend
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}
         run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Deploy prebuilt output
-        working-directory: backend
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_BACKEND_PROJECT_ID }}

@@ -97,6 +97,7 @@ export function ModelPerformancePage() {
               <ModelCardRow label="Task" value="Bone age regression from left-hand X-ray" />
               <ModelCardRow label="Inputs" value="X-ray image + sex" />
               <ModelCardRow label="Architecture" value="[Backbone, e.g. CNN name]" />
+              <ModelCardRow label="Heatmap method" value="Score-CAM (gradient-free)" />
               <ModelCardRow label="Training data" value="RSNA Pediatric Bone Age Challenge 2017" />
               <ModelCardRow label="Dataset split" value="12,611 train · 1,425 validation · 200 test" />
               <ModelCardRow

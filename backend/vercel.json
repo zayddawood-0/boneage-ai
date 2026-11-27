@@ -2,8 +2,9 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [{ "path": "/internal/retention-cleanup", "schedule": "0 3 * * *" }],
   "functions": {
-    "app/main.py": {
-      "maxDuration": 60
+    "api/index.py": {
+      "maxDuration": 90
     }
-  }
+  },
+  "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }]
 }

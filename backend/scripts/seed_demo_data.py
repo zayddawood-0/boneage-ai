@@ -13,13 +13,26 @@ running the actual deterministic rules + note writer against these values.
 Usage (from the repo root, after `alembic upgrade head` in backend/):
     python backend/scripts/seed_demo_data.py
 Safe to re-run — existing users/patients/cases (matched by email/code) are
-left alone rather than duplicated.
+looked up before any insert and left alone rather than duplicated. Each
+insert also falls back gracefully (rollback + skip) if it hits a unique
+-constraint conflict anyway — e.g. two deploys' migration jobs overlapping
+against the same persistent Postgres database (Neon, production) — rather
+than failing the whole run; this never mattered against SQLite-on-Render's
+per-deploy-ephemeral disk, where the database was always empty to start with.
+
+To run against production (e.g. after exporting a real checkpoint, or to
+re-seed after schema changes) rather than your local SQLite DB, set
+DATABASE_URL to the production connection string for just this command —
+see the "Database" section of backend/README.md:
+    DATABASE_URL="<production-postgres-url>" python backend/scripts/seed_demo_data.py
 """
 from __future__ import annotations
 
 import datetime as dt
 import sys
 from pathlib import Path
+
+from sqlalchemy.exc import IntegrityError
 
 _BACKEND_DIR = Path(__file__).resolve().parents[1]
 if str(_BACKEND_DIR) not in sys.path:
@@ -113,6 +126,12 @@ DEMO_CASES = [
 
 
 def seed_users(db) -> dict[str, models.User]:
+    # Each user is committed individually (not batched into one final
+    # commit) so that a conflict on one row only ever rolls back that one
+    # row — never the users already durably committed earlier in this same
+    # run. See the module docstring for why this matters against a
+    # persistent Postgres database in a way it never did against
+    # SQLite-on-Render's per-deploy-ephemeral disk.
     users_by_role = {}
     for spec in DEMO_USERS:
         user = db.query(models.User).filter_by(email=spec["email"]).one_or_none()
@@ -124,18 +143,26 @@ def seed_users(db) -> dict[str, models.User]:
                 name=spec["name"],
             )
             db.add(user)
-            db.flush()
-            print(f"Created user {spec['email']} ({spec['role']})")
+            try:
+                db.commit()
+                print(f"Created user {spec['email']} ({spec['role']})")
+            except IntegrityError:
+                # Another concurrent run (or a retried deploy) created it
+                # first between our lookup and this insert — treat as
+                # already-seeded rather than failing the whole run.
+                db.rollback()
+                user = db.query(models.User).filter_by(email=spec["email"]).one()
+                print(f"User {spec['email']} was created concurrently, leaving as-is")
         else:
             print(f"User {spec['email']} already exists, leaving as-is")
         users_by_role[spec["role"]] = user
-    db.commit()
     return users_by_role
 
 
 def seed_cases(db, doctor_user: models.User) -> None:
     settings_row = get_or_create_settings(db)
 
+    # Same per-item commit pattern as seed_users, and for the same reason.
     for spec in DEMO_CASES:
         patient = db.query(models.Patient).filter_by(patient_code=spec["patient_code"]).one_or_none()
         if patient is None:
@@ -147,8 +174,13 @@ def seed_cases(db, doctor_user: models.User) -> None:
                 is_demo=True,
             )
             db.add(patient)
-            db.flush()
-            print(f"Created patient {spec['patient_code']} ({spec['name']})")
+            try:
+                db.commit()
+                print(f"Created patient {spec['patient_code']} ({spec['name']})")
+            except IntegrityError:
+                db.rollback()
+                patient = db.query(models.Patient).filter_by(patient_code=spec["patient_code"]).one()
+                print(f"Patient {spec['patient_code']} was created concurrently, leaving as-is")
 
         existing_case = db.query(models.Case).filter_by(case_code=spec["case_code"]).one_or_none()
         if existing_case is not None:
@@ -189,12 +221,15 @@ def seed_cases(db, doctor_user: models.User) -> None:
             case.decided_at = dt.datetime.combine(spec["xray_date"], dt.time(14, 30))
 
         db.add(case)
-        print(
-            f"Created case {spec['case_code']}: {review.gap_direction} / {review.flag_status} "
-            f"(decision={spec['decision']})"
-        )
-
-    db.commit()
+        try:
+            db.commit()
+            print(
+                f"Created case {spec['case_code']}: {review.gap_direction} / {review.flag_status} "
+                f"(decision={spec['decision']})"
+            )
+        except IntegrityError:
+            db.rollback()
+            print(f"Case {spec['case_code']} was created concurrently, leaving as-is")
 
 
 def main() -> None:

@@ -37,6 +37,7 @@ backend/
 │   └── cleanup_retention.py           # manual/local-dev equivalent of the Vercel Cron job
 ├── tests/                             # pytest — see "Tests" below
 ├── alembic.ini, pytest.ini
+├── api/index.py                        # Vercel Function entrypoint — re-exports app/main.py's app
 ├── vercel.json, .python-version       # Vercel Python Function config — see "Deployment" below
 ├── requirements.txt                    # what Vercel actually deploys — torch-free, see below
 ├── requirements-dev.txt                 # + test-only extras (torch, for test_inference_adapter.py)
@@ -79,7 +80,7 @@ It generates three same-sized images per case (`app/storage.py`): `GET /cases/{i
 
 ## Image storage: local disk or Vercel Blob
 
-`app/storage.py` picks automatically, based on whether `BLOB_READ_WRITE_TOKEN` is set: local disk under `UPLOAD_DIR` (local dev/tests default) or Vercel Blob (production). Either way every `save_*` function returns an opaque string "handle" stored in the `Case` row's `*_path` column; callers (`routers/cases.py`, `app/pdf.py`, `app/retention.py`) never need to know which backend produced it. Blobs are stored `access="private"` — the frontend only ever reaches images through the backend's own authenticated endpoints, same as local disk.
+`app/storage.py` picks automatically, based on whether Blob is configured (`BLOB_STORE_ID` — set by `vercel storage connect`, OIDC credentials, no static token — or `BLOB_READ_WRITE_TOKEN`): local disk under `UPLOAD_DIR` (local dev/tests default) or Vercel Blob (production). Either way every `save_*` function returns an opaque string "handle" stored in the `Case` row's `*_path` column; callers (`routers/cases.py`, `app/pdf.py`, `app/retention.py`) never need to know which backend produced it. Blobs are stored `access="private"` — the frontend only ever reaches images through the backend's own authenticated endpoints, same as local disk.
 
 ## CORS (deployment)
 
@@ -88,6 +89,10 @@ Locally, the frontend talks to the backend through the Vite dev proxy (same orig
 ## Model delivery (deployment)
 
 The exported ONNX model (`ml/export_onnx.py`'s output directory) is gitignored, like the old `.pt` checkpoint. Since Vercel's Python Functions have no pre-start hook to run a download step from ahead of time, `app/inference_adapter.py` fetches it lazily — on the first real prediction request after a cold start — from `ONNX_DOWNLOAD_URL` if set (a zip containing `backbone.onnx`, `head_part1.onnx`, `head_part2.onnx`, `metadata.json` at its root). This never fails the request: if the URL is unset or the download fails, it falls back to the mock predictor, same as local dev without an exported model, and only tries once per cold start (not on every request).
+
+**Caching in `/tmp`:** the deployed function's own filesystem is read-only — only `/tmp` is writable, and it persists across invocations handled by the same warm instance (reset on the next cold start). `ML_ONNX_DIR` defaults to `/tmp/boneage-onnx` automatically on Vercel (detected via `VERCEL=1`, which Vercel sets itself — see `app/config.py`), so a warm function reuses the already-downloaded model instead of re-fetching it on every request; only a genuine cold start pays the download cost.
+
+**Cold-start timing:** `vercel.json` sets `maxDuration: 90` for the whole app — comfortably above a worst-case cold start (ONNX Runtime import, a model download if `/tmp` is empty, 20 MC-dropout passes, and Score-CAM's ~32 extra masked forward passes), without claiming the Hobby plan's full ceiling. With [Fluid compute](https://vercel.com/docs/fluid-compute) (default for new Vercel projects), Hobby's default **and** maximum `maxDuration` is 300s — Pro/Enterprise can go to 800s (or 1800s in beta) — so 90s leaves ample headroom; raise it if cold-start predictions ever time out in practice.
 
 ## Data retention cleanup
 
@@ -108,9 +113,10 @@ See [AGENTS.md](../AGENTS.md#the-growth-review-agent) for the full spec. In shor
 
 ## Deployment (Vercel)
 
-The backend deploys as its own Vercel project (Root Directory `backend`), separate from the frontend's. Vercel auto-detects it as a Python project from `app/main.py`'s top-level `app` (ASGI) variable — no Docker, no custom entrypoint file needed. `vercel.json` adds the retention-cleanup cron schedule and a `maxDuration` for the predict endpoint (MC-dropout + Score-CAM run several extra forward passes); `.python-version` pins the runtime.
+The backend deploys as its own Vercel project (Root Directory `backend`), separate from the frontend's. `api/index.py` re-exports `app/main.py`'s FastAPI `app` — Vercel's Python builder looks for Serverless Functions under `api/` — and `vercel.json` routes every path to it (`rewrites`), sets `maxDuration`, and adds the retention-cleanup cron schedule; `.python-version` pins the runtime. No Docker.
 
-Two things worth knowing:
+Three things worth knowing:
+- **Always run `vercel link`/`pull`/`build`/`deploy` from the repo root, never from inside `backend/`** (as a shell `cd` or `--cwd`). The CLI combines the project's Root Directory setting with the directory it's invoked from, so running it from inside `backend/` produces an invalid doubled path (`backend/backend`) and fails — confirmed by actually hitting this. `.github/workflows/deploy.yml`'s Vercel CLI steps have no `working-directory:` override for exactly this reason.
 - **The backend imports `ml/boneage/*` from the sibling `ml/` directory at runtime** (`sys.path` manipulation in `app/inference_adapter.py`) — this only works if the Vercel project's "Include files outside the Root Directory in the Build Step" setting stays enabled (it's the default; see [README.md#deployment-setup-vercel--github-actions](../README.md#deployment-setup-vercel--github-actions)).
 - **`requirements.txt` is what Vercel actually installs and deploys** — it's deliberately torch-free (ONNX Runtime only) to stay under Vercel's 500 MB uncompressed Python Function limit (`torch`+`torchvision` alone measure ~750 MB — see [docs/architecture.md#deployment-notes](../docs/architecture.md#deployment-notes)). `requirements-dev.txt` adds `torch`/`torchvision`/`pandas`/`matplotlib`/`onnx` back on top, for the test suite only (`test_inference_adapter.py` trains and ONNX-exports a tiny throwaway checkpoint) — never installed in production.
 

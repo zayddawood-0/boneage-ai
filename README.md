@@ -101,31 +101,62 @@ npm run build     # production build (tsc -b && vite build)
 
 ## Deployment setup (Vercel + GitHub Actions)
 
-Frontend **and** backend are both deployed to **Vercel**, as two separate projects from this one repo — the backend as a Python Function (see `backend/vercel.json`, `backend/.python-version`; no Docker/Render involved). Both deploy only through `.github/workflows/deploy.yml`, after `.github/workflows/ci.yml` passes on `main` (see [docs/architecture.md](docs/architecture.md#deployment-notes)). Do this once, in order:
+Frontend **and** backend are both deployed to **Vercel**, as two separate projects from this one repo — the backend as a Python Function (`backend/api/index.py` re-exports the FastAPI `app`; `backend/vercel.json` routes every path to it and defines the retention-cleanup cron; `backend/.python-version` pins the runtime — no Docker/Render involved). Both deploy only through `.github/workflows/deploy.yml`, after `.github/workflows/ci.yml` passes on `main` (see [docs/architecture.md](docs/architecture.md#deployment-notes)).
 
-1. **Create the backend Vercel project.** New Project → import this repo → set its **Root Directory** to `backend`. Vercel auto-detects it as a Python project (`app/main.py`'s `app` — see `backend/vercel.json`); no Build/Output Directory overrides needed.
-2. **Keep "Include files outside the Root Directory in the Build Step" enabled** (Project Settings → Build and Deployment → Root Directory — it's the default). The backend imports `ml/boneage/*` from the sibling `ml/` directory at runtime; turning this off breaks the real (non-mock) prediction path.
-3. **Add a Postgres database.** Project → Storage → Marketplace → Neon (or your own Neon project, connected the same way) → connect it to this project. Vercel sets `DATABASE_URL` automatically (a bare `postgres://`/`postgresql://` URL is fine — `app/database.py` normalises it to use `psycopg` itself).
-4. **Add a Blob store.** Project → Storage → Blob → create one → connect it to this project. Vercel sets `BLOB_READ_WRITE_TOKEN` automatically — its mere presence is what switches `app/storage.py` from local disk to Blob.
-5. **Set the backend project's remaining env vars** (Settings → Environment Variables, Production): `SECRET_KEY` (generate with `python -c "import secrets; print(secrets.token_hex(32))"`), `CRON_SECRET` (any random 16+ character string — secures the retention-cleanup cron, see `app/routers/internal.py`), `CORS_ORIGIN` (fill in after step 8, once you have the frontend's URL), and optionally `ONNX_DOWNLOAD_URL` and `OPENAI_API_KEY`.
-6. **Turn off the backend project's auto-deploy from Git.** Project Settings → Git → disconnect/disable automatic deployments — deploys should only come from the workflow's `vercel deploy`, not Vercel's own push listener.
-7. **Create the frontend Vercel project.** New Project → import this repo again → set its **Root Directory** to `frontend`. Framework preset: Vite. Add a Production environment variable `VITE_API_BASE_URL` pointing at the backend project's URL from step 1, e.g. `https://boneage-ai-backend.vercel.app`.
-8. **Turn off the frontend project's auto-deploy from Git**, same as step 6.
+**Status: set up and live** (`boneage-ai-backend` / `boneage-ai-frontend`, both under the `zayddawood-0s-projects` Vercel team) — this section is both the setup record and the reference if you ever need to recreate it. Steps 1–9 were done via the Vercel CLI; the Vercel CLI commands below assume you're logged in (`vercel login`) and run **from the repo root** (see the gotcha after step 9).
+
+1. **Create the backend project + link it:**
+   ```bash
+   vercel project create boneage-ai-backend --scope <team>
+   vercel link --yes --scope <team> --project boneage-ai-backend   # from the repo root
+   vercel project update boneage-ai-backend --scope <team> --root-directory backend --source-files-outside-root-directory --yes
+   ```
+   `--source-files-outside-root-directory` is what keeps "Include files outside the Root Directory in the Build Step" enabled (it's the default, but set explicitly) — the backend imports `ml/boneage/*` from the sibling `ml/` directory at runtime; without this, the real (non-mock) prediction path breaks.
+2. **Add a Postgres database (Neon):**
+   ```bash
+   vercel integration accept-terms neon --yes --scope <team>
+   vercel integration add neon --billing-plan free_v3 --meta auth=false --meta region=iad1 --name boneage-ai-db --scope <team>
+   ```
+   This provisions Neon and connects it to the linked project in one step, setting `DATABASE_URL` (among other Postgres-related vars) automatically — a bare `postgres://`/`postgresql://` URL is fine, `app/database.py` normalises it to use `psycopg` itself. (No CLI path for Neon? Use the dashboard: Project → Storage → Marketplace → Neon → connect.)
+3. **Add a Blob store:**
+   ```bash
+   vercel storage create boneage-ai-images --type blob --access private --scope <team>
+   vercel storage connect boneage-ai-images --scope <team> --yes
+   ```
+   Sets `BLOB_STORE_ID` automatically (OIDC credentials, no static token — this is the current connection mode; an older/manual read-write token would instead be `BLOB_READ_WRITE_TOKEN`) — either one's presence is what switches `app/storage.py` from local disk to Blob.
+4. **Set the backend project's remaining env vars** — generate `SECRET_KEY`/`CRON_SECRET` locally and pipe them in (never pass secret values as a plain CLI arg — they'd land in shell history/process lists):
+   ```bash
+   python -c "import secrets; print(secrets.token_hex(32))" > /tmp/sk.txt
+   vercel env add SECRET_KEY --project boneage-ai-backend --scope <team> --environment production,preview,development --sensitive --yes < /tmp/sk.txt
+   rm /tmp/sk.txt   # same pattern for CRON_SECRET (any random 16+ char string)
+   ```
+   `CORS_ORIGIN` needs the frontend's URL, so set it after step 6: `vercel env add CORS_ORIGIN --project boneage-ai-backend --scope <team> --environment production,preview,development --value "<frontend-url>" --yes`. `ONNX_DOWNLOAD_URL` and `OPENAI_API_KEY` are optional.
+5. **Turn off the backend project's auto-deploy from Git** (dashboard only: Project Settings → Git → disconnect) — deploys should only come from the workflow's `vercel deploy`, not Vercel's own push listener. (Our projects were created via CLI with no Git connection at all, so there's nothing to disconnect unless you later connect one.)
+6. **Create + link the frontend project, set its Framework and API URL:**
+   ```bash
+   vercel project create boneage-ai-frontend --scope <team>
+   vercel project update boneage-ai-frontend --scope <team> --root-directory frontend --framework vite --yes
+   vercel link --yes --scope <team> --project boneage-ai-frontend   # from the repo root
+   vercel env add VITE_API_BASE_URL --project boneage-ai-frontend --scope <team> --environment production,preview,development --value "<backend-url>" --yes
+   ```
+7. **Turn off the frontend project's auto-deploy from Git**, same as step 5.
+8. **First deploy of each** (also how you get each project's real `.vercel.app` URL, needed for steps 4/6 above): relink to the project, then `vercel deploy --scope <team>` (first deploy auto-promotes to production). Redeploy the backend once more after step 4 sets `CORS_ORIGIN`, since env vars only take effect on the next deploy.
 9. **Get Vercel's token and IDs:**
-   - `VERCEL_TOKEN`: Vercel → Account Settings → Tokens → create one.
-   - `VERCEL_ORG_ID`: the same for both projects — read it from either project's `.vercel/project.json` after running `vercel link` locally once, or from Settings → General.
-   - `VERCEL_PROJECT_ID` (frontend) and a second, separate project id for the backend project — same place, per project.
-10. **Go back to the backend project and fill in `CORS_ORIGIN`** with the frontend project's URL from step 7 (e.g. `https://boneage-ai.vercel.app`).
-11. **Add the GitHub repo secrets** (Settings → Secrets and variables → Actions): `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` (frontend), `VERCEL_BACKEND_PROJECT_ID`, and `DATABASE_URL` (the same Postgres connection string from step 3 — needed separately here so the deploy workflow's migration job can run `alembic upgrade head` against production from the GitHub Actions runner; see `.github/workflows/deploy.yml`'s `migrate-backend-db` job).
-12. **Push to `main`.** CI runs; once it's green, the deploy workflow applies DB migrations, then builds/deploys both Vercel projects.
+   - `VERCEL_TOKEN`: `vercel tokens create "github-actions-<repo>"` — **may fail** ("Cannot create tokens for this app") depending on how the CLI session is authenticated; if so, create one via Vercel → Account Settings → Tokens in the dashboard instead.
+   - `VERCEL_ORG_ID` / `VERCEL_PROJECT_ID`: read from `.vercel/project.json` after linking each project (`orgId`/`projectId` — the org id is the same for both projects; each project has its own project id).
+
+   **Gotcha, confirmed by actually running this:** always run `vercel link`/`vercel pull`/`vercel build`/`vercel deploy` from the **repo root**, never with `cwd` (or a shell `cd`) already inside `frontend/`/`backend/`. The CLI combines the project's Root Directory setting with wherever it's invoked from — running it from inside the matching subdirectory produces an invalid doubled path (e.g. `backend/backend`) and the build/deploy fails. This is exactly why `.github/workflows/deploy.yml`'s Vercel CLI steps have no `working-directory:` override. A local `vercel build` may also hit an unrelated Windows-only symlink permission error in the CLI's own build-tool cache — `vercel deploy` (which builds on Vercel's cloud infrastructure, same as CI) sidesteps it.
+10. **Add the GitHub repo secrets** (`gh secret set <NAME>`, or Settings → Secrets and variables → Actions): `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID` (frontend), `VERCEL_BACKEND_PROJECT_ID`, and `DATABASE_URL` (the same Postgres connection string from step 2 — needed separately here so the deploy workflow's migration job can run `alembic upgrade head` against production from the GitHub Actions runner; pull it with `vercel env pull <file> --environment=production` into a temp file and pipe that into `gh secret set DATABASE_URL`, then delete the temp file — never pass it as a plain CLI arg). If a `RENDER_DEPLOY_HOOK_URL` secret exists from an earlier setup, delete it (`gh secret delete RENDER_DEPLOY_HOOK_URL`) — it's unused now.
+11. **Push to `main`.** CI runs; once it's green, the deploy workflow applies DB migrations, then builds/deploys both Vercel projects.
 
 Never put any of the above tokens/URLs/keys in code or the workflow files — they're GitHub secrets and Vercel environment variables only.
 
 Notes:
-- **Exporting a trained model:** once you have a real checkpoint, run `python ml/export_onnx.py --config ml/config/config.yaml --checkpoint ml/checkpoints/best_model.pt --out-dir ml/checkpoints/onnx`, upload the resulting directory as a zip somewhere reachable, and set `ONNX_DOWNLOAD_URL` on the backend project — it's fetched lazily on the first real prediction request after a cold start (see `app/inference_adapter.py`). Until then, the API transparently falls back to the clearly-labelled mock predictor.
+- **Exporting a trained model:** once you have a real checkpoint, run `python ml/export_onnx.py --config ml/config/config.yaml --checkpoint ml/checkpoints/best_model.pt --out-dir ml/checkpoints/onnx`, upload the resulting directory as a zip somewhere reachable, and set `ONNX_DOWNLOAD_URL` on the backend project — it's fetched lazily on the first real prediction request after a cold start, and cached in `/tmp` so later warm requests don't re-download it (see `app/inference_adapter.py`). Until then, the API transparently falls back to the clearly-labelled mock predictor.
 - **Retention cleanup** runs automatically via Vercel Cron (`backend/vercel.json`'s `crons`, daily) — see [backend/README.md](backend/README.md#data-retention-cleanup).
-- Vercel Functions can cold-start — the first request after a period of inactivity may take a few seconds longer, most noticeably for a real (ONNX) prediction. Open the app a minute before a live demo.
+- Vercel Functions can cold-start — the first request after a period of inactivity may take a few seconds longer, most noticeably for a real (ONNX) prediction; `maxDuration` is set to 90s to cover this comfortably (Hobby's ceiling is 300s with Fluid compute). Open the app a minute before a live demo.
 - See [docs/demo-script.md](docs/demo-script.md) for the judge walkthrough once it's deployed (or running locally as a fallback).
+- **Re-seed demo data against production directly** (the deploy workflow already does this on every deploy, but to run it manually): pull `DATABASE_URL` the same way as step 10 above into a local env var (never print it), then `DATABASE_URL="<pulled-value>" python backend/scripts/seed_demo_data.py` — safe to re-run, see the script's own docstring.
 
 ## Documentation map
 

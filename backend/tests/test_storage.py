@@ -1,8 +1,9 @@
 """Storage backend dispatch (app/storage.py): local disk by default, Vercel
-Blob when BLOB_READ_WRITE_TOKEN is set — see config.py's `use_blob_storage`.
-The Blob branch is exercised against a fake `vercel.blob.sync` module (no
-real network/credentials needed) so this runs in CI the same as everything
-else.
+Blob when either `BLOB_STORE_ID` (set by `vercel storage connect`, the
+current OIDC-based credential mode — the realistic production case) or
+`BLOB_READ_WRITE_TOKEN` is set — see config.py's `use_blob_storage`. The
+Blob branch is exercised against a fake `vercel.blob.sync` module (no real
+network/credentials needed) so this runs in CI the same as everything else.
 """
 from __future__ import annotations
 
@@ -21,6 +22,7 @@ def local_storage(monkeypatch, tmp_path):
     # get_settings() re-reads the environment on every call (no caching —
     # see config.py), so these just need to be set before storage.py calls it.
     monkeypatch.setenv("UPLOAD_DIR", str(tmp_path))
+    monkeypatch.delenv("BLOB_STORE_ID", raising=False)
     monkeypatch.delenv("BLOB_READ_WRITE_TOKEN", raising=False)
     return tmp_path
 
@@ -96,10 +98,7 @@ class _FakeBlobModule(types.SimpleNamespace):
         self.delete_blob = delete_blob
 
 
-@pytest.fixture
-def blob_storage(monkeypatch):
-    monkeypatch.setenv("BLOB_READ_WRITE_TOKEN", "fake-token-for-tests")
-
+def _install_fake_blob_module(monkeypatch) -> "_FakeBlobModule":
     fake_blob = _FakeBlobModule()
     fake_vercel_blob_pkg = types.ModuleType("vercel.blob")
     fake_vercel_blob_pkg.sync = fake_blob
@@ -111,7 +110,28 @@ def blob_storage(monkeypatch):
     return fake_blob
 
 
-def test_blob_backend_selected_when_token_set(blob_storage):
+@pytest.fixture
+def blob_storage(monkeypatch):
+    # The realistic production path: `vercel storage connect` sets
+    # BLOB_STORE_ID (OIDC credentials, no static token) — see config.py.
+    monkeypatch.setenv("BLOB_STORE_ID", "store_fake-for-tests")
+    return _install_fake_blob_module(monkeypatch)
+
+
+@pytest.fixture
+def blob_storage_via_token(monkeypatch):
+    # The older/manually-issued static-token path, still supported.
+    monkeypatch.setenv("BLOB_READ_WRITE_TOKEN", "fake-token-for-tests")
+    return _install_fake_blob_module(monkeypatch)
+
+
+def test_blob_backend_selected_when_store_id_set(blob_storage):
+    from app.config import get_settings
+
+    assert get_settings().use_blob_storage is True
+
+
+def test_blob_backend_selected_when_token_set(blob_storage_via_token):
     from app.config import get_settings
 
     assert get_settings().use_blob_storage is True

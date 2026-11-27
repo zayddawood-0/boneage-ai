@@ -6,11 +6,23 @@ Vercel projects — see README.md#deployment-setup-vercel--github-actions).
 """
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+
+# Vercel sets VERCEL=1 in every deployed function's environment (local dev
+# and CI never set it). The deployed function's own filesystem — where the
+# repo checkout, including ml/checkpoints/, lives — is read-only; only /tmp
+# is writable, and it persists across invocations handled by the same warm
+# instance (reset on the next cold start). Defaulting the ONNX model
+# directory there means a warm function reuses the already-downloaded model
+# instead of re-fetching it from ONNX_DOWNLOAD_URL on every request — see
+# inference_adapter.py.
+_ON_VERCEL = os.environ.get("VERCEL") == "1"
+_DEFAULT_ML_ONNX_DIR = Path("/tmp/boneage-onnx") if _ON_VERCEL else REPO_ROOT / "ml" / "checkpoints" / "onnx"
 
 
 class Settings(BaseSettings):
@@ -23,13 +35,20 @@ class Settings(BaseSettings):
     secret_key: str = "dev-secret-change-me"
     access_token_expire_minutes: int = 480
 
-    # Local disk, used whenever `blob_read_write_token` is unset (local dev,
-    # tests) — see storage.py.
+    # Local disk, used whenever Blob isn't configured (local dev, tests) —
+    # see storage.py.
     upload_dir: Path = REPO_ROOT / "backend" / "uploads"
 
     # Vercel Blob — set automatically by Vercel when a Blob store is
-    # connected to the project. Its mere presence is what switches
-    # storage.py from local disk to Blob (no separate on/off setting).
+    # connected to the project. Connecting a store via `vercel storage
+    # connect` (the current, OIDC-based credential mode) sets
+    # `BLOB_STORE_ID` (paired with an OIDC token the `vercel-blob` SDK reads
+    # from the request context itself — no static secret involved); an
+    # older/manually-issued read-write token would instead be
+    # `BLOB_READ_WRITE_TOKEN`. Either one's mere presence is what switches
+    # storage.py from local disk to Blob (no separate on/off setting) — see
+    # `use_blob_storage` below.
+    blob_store_id: str = ""
     blob_read_write_token: str = ""
 
     # Where the ONNX graphs + metadata.json (ml/boneage/onnx_export.py) live
@@ -37,7 +56,7 @@ class Settings(BaseSettings):
     # from `onnx_download_url` on first real prediction if missing (see
     # inference_adapter.py) rather than at a separate startup step, since
     # Vercel's Python functions have no pre-start hook to run one in.
-    ml_onnx_dir: Path = REPO_ROOT / "ml" / "checkpoints" / "onnx"
+    ml_onnx_dir: Path = _DEFAULT_ML_ONNX_DIR
     onnx_download_url: str = ""
 
     # Where ml/evaluate.py writes val_results.json (see
@@ -68,7 +87,7 @@ class Settings(BaseSettings):
 
     @property
     def use_blob_storage(self) -> bool:
-        return bool(self.blob_read_write_token)
+        return bool(self.blob_store_id or self.blob_read_write_token)
 
 
 def get_settings() -> Settings:

@@ -14,6 +14,7 @@ ml/datasets/
 **/boneage-validation-dataset/
 **/boneage-test-dataset/
 *.dcm
+demo-samples/
 
 # Model weights / checkpoints
 *.pt

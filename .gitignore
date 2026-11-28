@@ -21,6 +21,7 @@ ml/datasets/
 *.ckpt
 *.onnx
 ml/checkpoints/
+ml/results/
 ml/runs/
 ml/wandb/
 

@@ -2,11 +2,11 @@
 
 Part of the [BoneAge AI](../README.md) documentation set. See also: [data.md](data.md), [architecture.md](architecture.md), [testing.md](testing.md).
 
-No results in this document are real yet — every metric is marked `[TBD]` until training/evaluation actually happens. Do not fill these in with invented numbers.
+A first real checkpoint has now been trained and evaluated on Kaggle (2026-11-27/28) — the metrics below are real numbers copied from that run's results JSON, not invented. Remaining `[TBD]` markers are genuinely still unset. **Important caveat on the data split:** see [Evaluation metrics](#evaluation-metrics) below — both "val" and "test" numbers come from the same internal split of the RSNA training pool, not RSNA's official validation/test sets.
 
 ## Architecture
 
-- **Backbone:** a pretrained CNN (e.g. EfficientNet or ResNet — exact choice `[TBD]`), fine-tuned on RSNA.
+- **Backbone:** ResNet18 (`torchvision`, ImageNet-pretrained), fine-tuned on RSNA — confirmed by the training run below (`ml/config/config.example.yaml` / `ml/boneage/model.py` default).
 - **Inputs:** the left-hand X-ray image, plus the patient's **sex** concatenated into the regression head (sex is a known strong covariate for bone age).
 - **Output head:** regression output for bone age in months, plus an uncertainty estimate produced via **MC dropout** (multiple stochastic forward passes at inference time, with the resulting prediction spread reported as the uncertainty estimate) — chosen over a variance head or ensemble because it requires no change to the training loss and can be retrofitted onto the pretrained backbone.
 - **Explainability:** Grad-CAM over the backbone's final convolutional layer when running on PyTorch (training/evaluation, `ml/boneage/gradcam.py`); Score-CAM — a gradient-free stand-in, see below — when running via ONNX Runtime in the deployed backend (`ml/boneage/score_cam.py`, `ml/boneage/onnx_inference.py`). Either way the heatmap is rendered with the same inferno-style scale defined in [design.md](design.md#design-tokens).
@@ -29,16 +29,22 @@ Chronological age is **not** a model input or output — it's computed separatel
 1. Preprocess RSNA images per [data.md](data.md#preprocessing).
 2. Fine-tune the chosen backbone on the RSNA train split; validate on the RSNA validation split; hold out the RSNA test split for final internal evaluation.
 3. Evaluate generalisation and the gap-flagging logic on DHA and/or RHPE (see [data.md](data.md#handling-chronological-age-rsna-gap)).
-4. **Optimizer: confirmed AdamW**, with early stopping on validation MAE and a learning-rate schedule. Numeric hyperparameters (learning rate, batch size, epoch count, schedule type, augmentation strength): `[TBD]` — the values in `ml/config/config.example.yaml` are reasonable starting points for the implementation, not tuned/final settings.
+4. **Optimizer: confirmed AdamW**, with early stopping on validation MAE and a learning-rate schedule. Hyperparameters used for the trained checkpoint below: learning rate `1e-4`, weight decay `1e-5`, batch size `32`, cosine LR schedule, mixed precision on, early-stopping patience `5` epochs, max epochs `50` (configured cap — training actually stopped early, see below). These are **not** claimed to be tuned/optimal — they're the `ml/config/config.example.yaml` starting values, run as-is for a first hackathon checkpoint.
 5. Checkpointing: the best validation-MAE checkpoint is saved during training (see `ml/boneage/training.py`). Versioning approach beyond that for the hackathon: `[TBD]`.
+6. **First trained run (2026-11-27/28, Kaggle, NVIDIA T4):** trained on the full `kmader/rsna-bone-age` training pool (12,611 images, internal 90/10 split — see caveat below), stopped early at epoch 22 (best epoch 17, patience 5), total kernel wall-clock ≈ 91 minutes (including ~14 min one-time environment setup). See [Evaluation metrics](#evaluation-metrics) for results.
 
 ## Evaluation metrics
 
-- **MAE overall** (months): `[TBD]`.
-- **MAE by sex:** `[TBD]`.
-- **MAE by age band:** `[TBD]` (age band boundaries also `[TBD]`).
-- **% of predictions within ±12 months of ground truth:** `[TBD]`.
-- These are the metrics surfaced on the Model performance screen (see [design.md](design.md#7-model-performance)) — the screen should render `[TBD]`/"pending evaluation" rather than a placeholder number that could be mistaken for a real result.
+**⚠️ Evaluation-data caveat — read before using these numbers.** The public `kmader/rsna-bone-age` Kaggle mirror used for this training run does **not** ship a separately-labelled validation set, and its test-set CSV only contains `Case ID`/`Sex` — no bone age ground truth (the real RSNA challenge's official test labels were never publicly released). So both "val" and "test" below are the **same internal 10% held-out split** of the training pool (fixed seed 42, 1,261 images), not RSNA's official validation/test sets. Treat these as informal/internal numbers until evaluated against a genuinely held-out, separately-sourced set (e.g. DHA/RHPE, see [data.md](data.md)).
+
+Results from the first trained checkpoint (`ml/checkpoints/best_model.pt`, see [ml/results/val_results.json](../ml/results/val_results.json) / [test_results.json](../ml/results/test_results.json)):
+
+- **MAE overall** (months): **9.94**
+- **MAE by sex:** female **9.40**, male **10.37**
+- **MAE by age band** (months, edges `[0, 60, 120, 180, 240]`): 0–60: **9.10**; 60–120: **10.12**; 120–180: **9.46**; 180–240: **12.60**
+- **% of predictions within ±12 months of ground truth:** **68.3%**
+- Predicted-vs-true scatter plots: [ml/results/val_scatter.png](../ml/results/val_scatter.png), [ml/results/test_scatter.png](../ml/results/test_scatter.png) — points cluster tightly around the diagonal across the full 0–228 month range, with the widest scatter in the oldest age band (180–240 months), consistent with the higher MAE there.
+- These are the metrics surfaced on the Model performance screen (see [design.md](design.md#7-model-performance)).
 
 ## Explainability
 
@@ -61,7 +67,7 @@ Heatmaps are generated per prediction and shown overlaid on the X-ray in the cas
 
 ## Uncertainty approach
 
-- **Confirmed: MC dropout.** Multiple stochastic forward passes at inference time (dropout left active), with the spread of predictions reported as the uncertainty estimate. This must run fast enough to stay inline with inference for the demo (see [architecture.md](architecture.md#deployment-notes)); number of passes `[TBD]`. On the deployed (ONNX) backend, the backbone itself (no dropout) runs once and only the two tiny head layers are rerun per stochastic pass, with the dropout masks applied in numpy — see [Explainability](#explainability) above and `ml/boneage/onnx_export.py`.
+- **Confirmed: MC dropout.** Multiple stochastic forward passes at inference time (dropout left active), with the spread of predictions reported as the uncertainty estimate. This must run fast enough to stay inline with inference for the demo (see [architecture.md](architecture.md#deployment-notes)); number of passes **20** (`InferenceConfig.mc_dropout_passes`, as configured for the trained checkpoint above). On the deployed (ONNX) backend, the backbone itself (no dropout) runs once and only the two tiny head layers are rerun per stochastic pass, with the dropout masks applied in numpy — see [Explainability](#explainability) above and `ml/boneage/onnx_export.py`.
 - The uncertainty estimate feeds directly into the growth review agent's decision: predictions with uncertainty above a configured threshold are flagged for review regardless of the point-estimate gap (see [AGENTS.md](../AGENTS.md#decision-rules)).
 
 ## Model card template
@@ -72,9 +78,9 @@ Heatmaps are generated per prediction and shown overlaid on the X-ray in the cas
 | Version | `[TBD]` |
 | Intended use | Decision support for estimating bone age from a left-hand X-ray, for review by a qualified clinician. **Not a standalone diagnostic tool.** |
 | Out-of-scope use | Any use as a sole basis for diagnosis or treatment; use on X-ray views other than left hand; use without clinician review. |
-| Training data | RSNA Pediatric Bone Age Challenge 2017 (train/validation splits) — see [data.md](data.md). |
-| Evaluation data | RSNA test split; Digital Hand Atlas and/or RHPE for external evaluation — see [data.md](data.md). |
-| Metrics | MAE overall / by sex / by age band; % within ±12 months — all `[TBD]` pending training. |
+| Training data | RSNA Pediatric Bone Age Challenge 2017, via the `kmader/rsna-bone-age` Kaggle mirror — training pool only (12,611 images); 90% used for training, 10% held out internally for val/test (see Metrics caveat) — see [data.md](data.md). |
+| Evaluation data | **Not RSNA's official validation/test sets** — this mirror has no separate labelled validation set and its test set has no bone-age labels, so both "val" and "test" below are the same internal 10% held-out split of the training pool. Digital Hand Atlas and/or RHPE external evaluation: not yet done, `[TBD]`. See [data.md](data.md). |
+| Metrics | MAE overall **9.94** months (female 9.40, male 10.37); **68.3%** within ±12 months. Internal-split numbers, see caveat above and [Evaluation metrics](#evaluation-metrics). |
 | Known limitations | Population coverage of training/evaluation data is limited to the datasets listed in [data.md](data.md); performance on populations/age ranges outside those datasets is unverified. Heatmaps indicate attention, not correctness. Uncertainty estimates are model-internal and not a substitute for clinical judgement. |
 | Ethical considerations | See [safety-and-ethics.md](safety-and-ethics.md) — decision support only, bias/population limits, privacy, human-in-the-loop. |
 | Licence/attribution | RSNA: non-commercial research/education use with attribution. DHA/RHPE: per their stated terms — see [data.md](data.md#licence--attribution-requirements). |

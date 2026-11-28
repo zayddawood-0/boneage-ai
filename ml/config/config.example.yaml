@@ -35,9 +35,9 @@ data:
 
 preprocessing:
   # Square size images are resized/padded to before the model sees them.
-  # [TBD] — depends on the chosen CNN backbone (see docs/model.md); 384 is a
-  # reasonable placeholder default for an EfficientNet/ResNet-style backbone.
-  image_size: 384
+  # Confirmed: 224, matching the ResNet18 backbone used for the first real
+  # trained checkpoint (see docs/model.md#training-plan).
+  image_size: 224
   # Standard ImageNet normalisation constants — used because the grayscale
   # X-ray is replicated to 3 channels to match a pretrained backbone's input.
   normalize_mean: [0.485, 0.456, 0.406]
